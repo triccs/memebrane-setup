@@ -6,6 +6,9 @@ use cosmwasm_std::{
     Response, StdResult, Uint128, Reply, StdError, CosmosMsg, SubMsg, coins, QueryRequest, BankMsg,
 };
 
+use osmosis_std::types::osmosis::gamm::poolmodels::balancer::v1beta1::MsgCreateBalancerPoolResponse;
+use crate::error::ContractError;
+
 /// Send all contract assets to the burn address
 pub fn handle_balancer_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response>{
     match msg.clone().result.into_result() {
@@ -27,7 +30,7 @@ pub fn handle_balancer_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<R
         //Send all assets to the burn address
         let msg = BankMsg::Send {
             to_address: String::from("osmo1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqmcn030"),
-            amount: vec![assets],
+            amount: assets.clone(),
         };
 
         Ok(Response::new()

@@ -2,7 +2,7 @@ use std::{fs::create_dir_all, env::current_dir};
 
 use cosmwasm_schema::{export_schema, remove_schemas, schema_for};
 
-use crate::msgs::{InstantiateMsg, ExecuteMsg, QueryMsg, Config};
+use brane_auction::msgs::{InstantiateMsg, ExecuteMsg, QueryMsg, Config};
 
 fn main() {
     let mut out_dir = current_dir().unwrap();

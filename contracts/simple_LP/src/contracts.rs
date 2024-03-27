@@ -1,12 +1,17 @@
 use cosmwasm_std::{
     entry_point, has_coins, to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, 
-    QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery
+    QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery, attr
 };
 use cw2::set_contract_version;
 
-use crate::msgs::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use crate::msgs::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg, Config};
 use crate::reply::handle_balancer_reply;
 use crate::state::{CONFIG, OWNERSHIP_TRANSFER};
+use crate::error::ContractError;
+
+use osmosis_std::types::osmosis::gamm::poolmodels::balancer::v1beta1::MsgCreateBalancerPool;
+use osmosis_std::types::osmosis::gamm::v1beta1::PoolParams;
+use osmosis_std::types::osmosis::gamm::v1beta1::PoolAsset;
 
 // Contract name and version used for migration.
 const CONTRACT_NAME: &str = "simple_LP";
@@ -32,7 +37,6 @@ pub fn instantiate(
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new()
-        .add_submessage(submsg)
         .add_attribute("method", "instantiate")
         .add_attribute("config", format!("{:?}", config))
         .add_attribute("contract_address", env.contract.address)
@@ -48,38 +52,19 @@ pub fn execute(
 ) -> Result<Response, ContractError> {
     match msg {
         ExecuteMsg::LP {} => LP(deps, env, info),
-        ExecuteMsg::UpdateConfig { owner, paired_asset } => update_config(deps, info, owner, paired_asset),
+        ExecuteMsg::UpdateConfig { paired_asset } => update_config(deps, info, paired_asset),
         }
 }
 
 fn update_config(
     deps: DepsMut,
     info: MessageInfo,
-    owner: Option<Addr>,
     paired_asset: Option<String>,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
     if info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
-    }
-
-    //Assert Authority
-    if info.sender != config.owner {
-        //Check if ownership transfer is in progress & transfer if so
-        let new_owner = OWNERSHIP_TRANSFER.load(deps.storage)?;
-        if info.sender == new_owner {
-            config.owner = info.sender;
-        } else {
-            return Err(ContractError::Unauthorized { });
-        }
-    }    
-    if let Some(owner) = owner {
-        let valid_addr = deps.api.addr_validate(&owner)?;
-
-        //Set owner transfer state
-        OWNERSHIP_TRANSFER.save(deps.storage, &valid_addr)?; 
-        attrs.push(attr("owner_transfer", valid_addr));
     }
 
     if let Some(paired_asset) = paired_asset {
@@ -109,31 +94,31 @@ fn LP(
     let paired_asset_balance = match deps.querier.query_balance(&env.contract.address, &config.paired_asset){
         Ok(balance) => {
             if balance.amount.is_zero() {
-                return Err(ContractError::InsufficientFunds { asset: config.clone().paired_asset, amount: Uint128::zero() }),
+                return Err(ContractError::InsufficientFunds { asset: config.clone().paired_asset, amount: 0u128 })
             }
 
             balance.amount
         },
-        Err(_) => return Err(ContractError::InsufficientFunds { asset: config.clone().paired_asset, amount: Uint128::zero() }),
+        Err(_) => return Err(ContractError::InsufficientFunds { asset: config.clone().paired_asset, amount: 0u128 }),
     };
     let uosmo_balance = match deps.querier.query_balance(&env.contract.address, &String::from("uosmo")){
         Ok(balance) => {
             if balance.amount.is_zero() {
-                return Err(ContractError::InsufficientFunds { asset: String::from("uosmo"), amount: Uint128::zero() }),
+                return Err(ContractError::InsufficientFunds { asset: String::from("uosmo"), amount: 0u128 })
             }
             
             balance.amount
         },
-        Err(_) => return Err(ContractError::InsufficientFunds { asset: String::from("uosmo"), amount: Uint128::zero() }),
+        Err(_) => return Err(ContractError::InsufficientFunds { asset: String::from("uosmo"), amount: 0u128 }),
     };
     //Needs 100 USDC to pay for the LP
     match deps.querier.query_balance(&env.contract.address, &String::from("ibc/498A0751C798A0D9A389AA3691123DADA57DAA4FE165D5C75894505B876BA6E4")){
         Ok(balance) => {
             if balance.amount < Uint128::from(100_000_000u128) {
-                return Err(ContractError::InsufficientFunds { asset: String::from("usdc"), amount: Uint128::new(balance.amount) }),
+                return Err(ContractError::InsufficientFunds { asset: String::from("usdc"), amount: balance.amount.u128() })
             }
         },
-        Err(_) => return Err(ContractError::InsufficientFunds { asset: String::from("usdc"), amount: Uint128::zero() }),
+        Err(_) => return Err(ContractError::InsufficientFunds { asset: String::from("usdc"), amount: 0u128 }),
     };
 
     //Create the LP
@@ -146,15 +131,15 @@ fn LP(
         }),
         pool_assets: vec![
             PoolAsset { 
-                token: Some(Coin { denom: config.clone().paired_asset, amount: paired_asset_balance }), 
+                token: Some(osmosis_std::types::cosmos::base::v1beta1::Coin { denom: config.clone().paired_asset, amount: paired_asset_balance.to_string() }), 
                 weight: String::from("50") 
             },
             PoolAsset { 
-                token: Some(Coin { denom: config.clone().osmo_denom, amount: uosmo_balance }), 
+                token: Some(osmosis_std::types::cosmos::base::v1beta1::Coin { denom: String::from("uosmo"), amount: uosmo_balance.to_string() }), 
                 weight: String::from("50") 
             }
         ],
-        future_pool_governor: config.clone().owner,
+        future_pool_governor: config.clone().owner.to_string(),
     };
     let sub_msg = SubMsg::reply_on_success(msg, BALANCER_POOL_REPLY_ID);
 

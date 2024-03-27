@@ -33,7 +33,7 @@ pub enum ExecuteMsg {
     // MigrateMinter { new_code_id: u64 },
     MigrateContract { new_code_id: u64 },
     UpdateConfig {
-        owner: Option<Addr>,
+        owner: Option<String>,
         bid_denom: Option<String>,
         minimum_outbid: Option<Decimal>,
         memecoin_denom: Option<String>,

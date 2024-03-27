@@ -32,7 +32,6 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 [dependencies]
 sg2 = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
 cw721 = { branch = "main", git = "https://github.com/CosmWasm/cw-nfts.git" }
-cw721-base = { features = ["library"] }
 sg721 = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
 sg721-base = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
 url = "2.5.0"

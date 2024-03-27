@@ -17,8 +17,8 @@ pub enum ContractError {
     #[error("Invalid Asset: {asset}")]
     InvalidAsset { asset: String },
 
-    #[error("Insufficient Funds: {asset} - {amount")]
-    InsufficientFunds { asset: String, amount: Uint128 },
+    #[error("Insufficient Funds: {asset} - {amount}")]
+    InsufficientFunds { asset: String, amount: u128 },
 }
 
 impl From<OverflowError> for ContractError {

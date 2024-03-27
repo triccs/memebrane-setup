@@ -1,6 +1,6 @@
 use cosmwasm_std::{
     entry_point, has_coins, to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, 
-    QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery
+    QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery, attr
 };
 use cw2::set_contract_version;
 
@@ -74,6 +74,7 @@ pub fn instantiate(
     let config = Config {
         owner: info.sender.clone(),
         bid_denom: msg.bid_denom,
+        minimum_outbid: Decimal::percent(1),
         memecoin_denom: msg.memecoin_denom,
         memecoin_distribution_amount: 100_000_000u128,
         memecoin_bid_percent: Decimal::percent(10),
@@ -137,14 +138,15 @@ pub fn execute(
         ExecuteMsg::ConcludeAuction {  } => conclude_auction(deps, env),
         // ExecuteMsg::MigrateMinter { new_code_id } => todo!(),
         ExecuteMsg::MigrateContract { new_code_id } => migrate_contract(deps, env, info, new_code_id),
-        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, memecoin_denom, curation_threshold, memecoin_bid_percent, memecoin_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period } => update_config(deps, info, owner, bid_denom, memecoin_denom, memecoin_distribution_amount, memecoin_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
+        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, memecoin_denom, curation_threshold, memecoin_bid_percent, memecoin_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period } => 
+        update_config(deps, info, owner, bid_denom, minimum_outbid, memecoin_denom, memecoin_distribution_amount, memecoin_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
         }
 }
 
 fn update_config(
     deps: DepsMut,
     info: MessageInfo,
-    owner: Option<Addr>,
+    owner: Option<String>,
     bid_denom: Option<String>,
     minimum_outbid: Option<Decimal>,
     memecoin_denom: Option<String>,
@@ -158,6 +160,7 @@ fn update_config(
     auction_period: Option<u64>,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
+    let mut attrs = vec![];
 
     if info.sender != config.owner {
         return Err(ContractError::Unauthorized {});
@@ -218,6 +221,7 @@ fn update_config(
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new()
+    .add_attributes(attrs)
         .add_attribute("method", "update_config")
         .add_attribute("config", format!("{:?}", config))
     )
@@ -477,7 +481,7 @@ fn bid_on_live_auction(
 
     //Check if the bid is higher than the current highest bid
     if let Some(highest_bid) = live_auction.bids.clone().last() {
-        if current_bid.amount <= highest_bid.amount * config.minimum_outbid {
+        if Uint128::new(current_bid.amount) <= Uint128::new(highest_bid.amount) * config.minimum_outbid {
             return Err(ContractError::CustomError { val: "Bid is lower than the minimum outbid amount".to_string() });
         } else {
             //Add the bid to the auction's bid list
@@ -522,7 +526,7 @@ fn bid_for_bid_assets(
     let mut live_auction = ASSET_AUCTION.load(deps.storage)?;
 
     //Check if the bid is higher than the current highest bid
-    if current_bid.amount <= live_auction.highest_bid.amount * config.minimum_outbid {
+    if Uint128::new(current_bid.amount) <= Uint128::new(live_auction.highest_bid.amount) * config.minimum_outbid {
         return Err(ContractError::CustomError { val: "Bid is lower than the minimum outbid amount".to_string() });
     } else {
         //Send the previous highest bid back to the bidder
@@ -582,6 +586,8 @@ fn conclude_bid_asset_auction(
     let mut msgs: Vec<CosmosMsg> = vec![];
     //Load live auction
     let live_auction = ASSET_AUCTION.load(storage);
+    //Load config
+    let config = CONFIG.load(storage)?;
     
     match live_auction {
         Ok(auction) => {
