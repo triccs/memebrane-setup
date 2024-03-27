@@ -7,9 +7,8 @@ use cw2::set_contract_version;
 use url::Url;
 
 use sg2::msg::{CollectionParams, CreateMinterMsg, Sg2ExecuteMsg};
-use cw721::TokensResponse;
-use sg721::{CollectionInfo, RoyaltyInfoResponse};
-use sg721_base::msg::{QueryMsg as Sg721QueryMsg, ExecuteMsg as Sg721ExecuteMsg};
+use cw721::{TokensResponse, Cw721QueryMsg as Sg721QueryMsg};
+use sg721::{CollectionInfo, RoyaltyInfoResponse, ExecuteMsg as Sg721ExecuteMsg};
 use crate::{error::ContractError, msgs::{Config, ExecuteMsg, InstantiateMsg, MigrateMsg}, reply::handle_collection_reply, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, PENDING_AUCTION, SUBMISSIONS, OWNERSHIP_TRANSFER}};
 
 
