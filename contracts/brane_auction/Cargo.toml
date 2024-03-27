@@ -35,7 +35,6 @@ cw721 = { branch = "main", git = "https://github.com/CosmWasm/cw-nfts.git" }
 cw721-base = { features = ["library"] }
 sg721 = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
 sg721-base = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
-base-minter = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
 url = "2.5.0"
 cosmwasm-std = { version = "1.0.0", features = ["stargate"] }
 cosmwasm-schema = "1.0.0"
