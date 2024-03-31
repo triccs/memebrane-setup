@@ -1,15 +1,17 @@
+use core::panic;
+
 use cosmwasm_std::{
-    entry_point, has_coins, to_json_binary, Addr, BankMsg, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, 
-    QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery, attr
+    attr, entry_point, from_json, has_coins, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, Querier, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery
 };
 use cw2::set_contract_version;
 
+use cw_storage_plus::Bound;
 use url::Url;
 
 use sg2::msg::{CollectionParams, CreateMinterMsg, Sg2ExecuteMsg};
 use cw721::{TokensResponse, Cw721QueryMsg as Sg721QueryMsg};
 use sg721::{CollectionInfo, RoyaltyInfoResponse, ExecuteMsg as Sg721ExecuteMsg};
-use crate::{error::ContractError, msgs::{Config, ExecuteMsg, InstantiateMsg, MigrateMsg}, reply::handle_collection_reply, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, PENDING_AUCTION, SUBMISSIONS, OWNERSHIP_TRANSFER}};
+use crate::{error::ContractError, msgs::{Config, ExecuteMsg, InstantiateMsg, MigrateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::handle_collection_reply, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS}};
 
 
 // Contract name and version used for migration.
@@ -22,6 +24,7 @@ const SECONDS_PER_DAY: u64 = 86400u64;
 const VOTE_PERIOD: u64 = 7u64;
 const AUCTION_PERIOD: u64 = 1u64;
 const CURATION_THRESHOLD: Decimal = Decimal::percent(11);
+const DEFAULT_LIMIT: u32 = 32u32;
 
 //Minter costs
 const MINTER_COST: u128 = 250_000_000u128;
@@ -34,52 +37,64 @@ pub fn instantiate(
     msg: InstantiateMsg,
 ) -> Result<Response, ContractError> {
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    let mut submsgs: Vec<SubMsg> = vec![];
 
-    //instantiate the Collection
-    let collection_msg = Sg2ExecuteMsg::CreateMinter (CreateMinterMsg::<Option<String>> {
-        init_msg: None,
-        collection_params: CollectionParams { 
-            code_id: msg.sg721_code_id, 
-            name: String::from("The International Brane Wave"), 
-            symbol: String::from("BRANE"), 
-            info: CollectionInfo { 
-                creator: String::from("Reverberating Brane Waves"), 
-                description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
-                image: todo!(), //"ipfs://CREATE AN IPFS LINK".to_string(), 
-                external_link: Some(String::from("https://twitter.com/insneinthebrane")),
-                explicit_content: Some(false), 
-                start_trading_time: None, 
-                royalty_info: Some(RoyaltyInfoResponse { 
-                    payment_address: env.contract.address.to_string(), 
-                    share: Decimal::percent(1)
-                }) 
+
+
+    if let Some(sg721_code_id) = msg.sg721_code_id {
+        //instantiate the Collection
+        let collection_msg = Sg2ExecuteMsg::CreateMinter (CreateMinterMsg::<Option<String>> {
+            init_msg: None,
+            collection_params: CollectionParams { 
+                code_id: sg721_code_id, 
+                name: String::from("The International Brane Wave"), 
+                symbol: String::from("BRANE"), 
+                info: CollectionInfo { 
+                    creator: String::from("Reverberating Brane Waves"), 
+                    description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
+                    image: todo!(), //"ipfs://CREATE AN IPFS LINK".to_string(), 
+                    external_link: Some(String::from("https://twitter.com/insneinthebrane")),
+                    explicit_content: Some(false), 
+                    start_trading_time: None, 
+                    royalty_info: Some(RoyaltyInfoResponse { 
+                        payment_address: env.contract.address.to_string(), 
+                        share: Decimal::percent(1)
+                    }) 
+                }
             }
+        });
+        let cosmos_msg: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: deps.api.addr_validate(&msg.base_factory_address)?.to_string(),
+            msg: to_json_binary(&collection_msg)?,
+            funds: vec![
+                Coin {
+                    denom: String::from("ustars"),
+                    amount: Uint128::new(MINTER_COST),
+                }
+            ],
+        });
+
+        //Create the collection submsg
+        let submsg = SubMsg::reply_on_success(cosmos_msg, COLLECTION_REPLY_ID);
+        //add to msgs
+        submsgs.push(submsg);
+    } else {
+        //Verify the minter address
+        if let Some(minter_addr) = msg.minter_addr.clone() {
+            deps.api.addr_validate(&minter_addr)?;
         }
-    });
-    let cosmos_msg: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Execute {
-        contract_addr: deps.api.addr_validate(&msg.base_factory_address)?.to_string(),
-        msg: to_json_binary(&collection_msg)?,
-        funds: vec![
-            Coin {
-                denom: String::from("ustars"),
-                amount: Uint128::new(MINTER_COST),
-            }
-        ],
-    });
-
-    //Create the collection submsg
-    let submsg = SubMsg::reply_on_success(cosmos_msg, COLLECTION_REPLY_ID);
+    }
 
     let config = Config {
         owner: info.sender.clone(),
-        bid_denom: msg.bid_denom,
+        bid_denom: msg.clone().bid_denom,
         minimum_outbid: Decimal::percent(1),
-        memecoin_denom: msg.memecoin_denom,
-        memecoin_distribution_amount: 100_000_000u128,
-        memecoin_bid_percent: Decimal::percent(10),
+        incentive_denom: msg.clone().incentive_denom,
+        incentive_distribution_amount: 100_000_000u128,
+        incentive_bid_percent: Decimal::percent(10),
         current_token_id: 0,
         current_submission_id: 0,
-        minter_addr: "".to_string(),
+        minter_addr: msg.clone().minter_addr.unwrap_or_else(|| "".to_string()),
         mint_cost: msg.mint_cost,
         submission_cost: 10_000_000u128,
         submission_limit: 333u64,
@@ -115,7 +130,7 @@ pub fn instantiate(
     })?;
 
     Ok(Response::new()
-        .add_submessage(submsg)
+        .add_submessages(submsgs)
         .add_attribute("method", "instantiate")
         .add_attribute("config", format!("{:?}", config))
         .add_attribute("contract_address", env.contract.address)
@@ -130,15 +145,15 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, ContractError> {
     match msg {
-        ExecuteMsg::SubmitNFT { proceed_recipient, token_uri } => submit_nft(deps, env, info, proceed_recipient, token_uri),
-        ExecuteMsg::VoteToCurate { submission_ids, vote } => curate_nft(deps, env, info, submission_ids, vote),
-        ExecuteMsg::BidForNFT {  } => bid_on_live_auction(deps, env, info),
+        ExecuteMsg::SubmitNft { proceed_recipient, token_uri } => submit_nft(deps, env, info, proceed_recipient, token_uri),
+        ExecuteMsg::VoteToCurate { submission_ids } => curate_nft(deps, env, info, submission_ids),
+        ExecuteMsg::BidForNft {  } => bid_on_live_auction(deps, env, info),
         ExecuteMsg::BidForAssets {  } => bid_for_bid_assets(deps, info),
         ExecuteMsg::ConcludeAuction {  } => conclude_auction(deps, env),
         // ExecuteMsg::MigrateMinter { new_code_id } => todo!(),
         ExecuteMsg::MigrateContract { new_code_id } => migrate_contract(deps, env, info, new_code_id),
-        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, memecoin_denom, curation_threshold, memecoin_bid_percent, memecoin_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period } => 
-        update_config(deps, info, owner, bid_denom, minimum_outbid, memecoin_denom, memecoin_distribution_amount, memecoin_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
+        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, incentive_denom, curation_threshold, incentive_bid_percent, incentive_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period } => 
+        update_config(deps, info, owner, bid_denom, minimum_outbid, incentive_denom, incentive_distribution_amount, incentive_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
         }
 }
 
@@ -148,9 +163,9 @@ fn update_config(
     owner: Option<String>,
     bid_denom: Option<String>,
     minimum_outbid: Option<Decimal>,
-    memecoin_denom: Option<String>,
-    memecoin_distribution_amount: Option<u128>,
-    memecoin_bid_percent: Option<Decimal>,
+    incentive_denom: Option<String>,
+    incentive_distribution_amount: Option<u128>,
+    incentive_bid_percent: Option<Decimal>,
     mint_cost: Option<u128>,
     submission_cost: Option<u128>,
     submission_limit: Option<u64>,
@@ -189,14 +204,14 @@ fn update_config(
     if let Some(minimum_outbid) = minimum_outbid {
         config.minimum_outbid = minimum_outbid;
     }
-    if let Some(memecoin_denom) = memecoin_denom {
-        config.memecoin_denom = Some(memecoin_denom);
+    if let Some(incentive_denom) = incentive_denom {
+        config.incentive_denom = Some(incentive_denom);
     }
-    if let Some(memecoin_distribution_amount) = memecoin_distribution_amount {
-        config.memecoin_distribution_amount = memecoin_distribution_amount;
+    if let Some(incentive_distribution_amount) = incentive_distribution_amount {
+        config.incentive_distribution_amount = incentive_distribution_amount;
     }
-    if let Some(memecoin_bid_percent) = memecoin_bid_percent {
-        config.memecoin_bid_percent = memecoin_bid_percent;
+    if let Some(incentive_bid_percent) = incentive_bid_percent {
+        config.incentive_bid_percent = incentive_bid_percent;
     }
     if let Some(mint_cost) = mint_cost {
         config.mint_cost = mint_cost;
@@ -216,7 +231,7 @@ fn update_config(
     if let Some(auction_period) = auction_period {
         config.auction_period = auction_period;
     }
-
+    
     CONFIG.save(deps.storage, &config)?;
 
     Ok(Response::new()
@@ -279,22 +294,20 @@ fn submit_nft(
     Url::parse(&token_uri).map_err(|_| ContractError::InvalidTokenURI { uri: token_uri.clone() })?;
 
     //If submission is from a non-holder, it costs Some(bid_asset)
-    if let Err(_) = check_if_collection_holder(deps.as_ref(), config.clone().minter_addr, info.clone().sender){
-        if !has_coins(&info.funds, &Coin {
-            denom: config.bid_denom.clone(),
-            amount: Uint128::new(config.submission_cost),
-        }) {
-            return Err(ContractError::CustomError { val: "Submission cost not sent".to_string() });
-        }
-
-        //Send the bid asset to the owner
-        msgs.push(CosmosMsg::Bank(BankMsg::Send {
-            to_address: config.owner.to_string(),
-            amount: vec![Coin {
-                denom: config.bid_denom.clone(),
-                amount: Uint128::new(config.submission_cost),
-            }],
-        }));
+    match check_if_collection_holder(deps.as_ref(), config.clone().minter_addr, info.clone().sender){
+        Ok(votes) => {
+            if votes == 0 {
+                //Check if the submission cost was sent                
+                if !has_coins(&info.funds, &Coin {
+                    denom: config.bid_denom.clone(),
+                    amount: Uint128::new(config.submission_cost),
+                }) {
+                    return Err(ContractError::CustomError { val: "Submission cost not sent".to_string() });
+                }
+                //Submission cost is used in the bid asset auction
+            }
+        },
+        Err(e) => return Err(e),
     };
 
     //Create a new submission
@@ -323,7 +336,11 @@ fn check_if_collection_holder(
     deps: Deps,
     minter_addr: String,
     sender: Addr,
-) -> Result<(), ContractError> {  
+) -> Result<u64, ContractError> {  
+    //If sender is the founder, they are valid
+    if sender == Addr::unchecked("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs") {
+        return Ok(1);
+    }
 
     //Check if the sender is a collection holder
     let token_info: TokensResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
@@ -332,10 +349,10 @@ fn check_if_collection_holder(
     })).map_err(|_| ContractError::CustomError { val: "Failed to query collection, sender may not hold an NFT".to_string() })?;
 
     if token_info.tokens.is_empty() {
-        return Err(ContractError::CustomError { val: "Sender does not hold an NFT in the collection".to_string() });
+        return Ok(0)
     }
 
-    Ok(())
+    Ok(token_info.tokens.len() as u64)
 }
 
 fn curate_nft(
@@ -343,7 +360,6 @@ fn curate_nft(
     env: Env,
     info: MessageInfo,
     submission_ids: Vec<u64>,
-    vote: bool,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
 
@@ -353,21 +369,36 @@ fn curate_nft(
     }
 
     //Make sure the sender is a collection holder
-    check_if_collection_holder(deps.as_ref(), config.clone().minter_addr, info.clone().sender)?;
+    let votes = check_if_collection_holder(deps.as_ref(), config.clone().minter_addr, info.clone().sender)?;
 
+    //Error if votes are 0
+    if votes == 0 {
+        return Err(ContractError::CustomError { val: "Sender does not hold an NFT".to_string() });
+    }
 
-    //Get total votes
-    let all_token_info: TokensResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
+    //Get the Curation passing threshold
+    let mut passing_threshold = 1u128;
+    match deps.querier.query::<TokensResponse>(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: config.clone().minter_addr,
         msg: to_json_binary(&Sg721QueryMsg::AllTokens { start_after: None, limit: None })?,
-    }))?;
-    let total_votes = all_token_info.tokens.len();
-    let passing_threshold = (Uint128::new(total_votes as u128) * config.curation_threshold).u128();
+    })){
+        Ok(token_info) => {
+            let total_votes = token_info.tokens.len();
+            passing_threshold = (Uint128::new(total_votes as u128) * config.curation_threshold).u128();
+        },
+        Err(_) => { 
+        }
+    
+    };
 
     //Update the submission info
     for submission_id in submission_ids.clone() {
         //Load submission info
-        let mut submission_info = SUBMISSIONS.load(deps.storage, submission_id)?;
+        let mut submission_info = match SUBMISSIONS.load(deps.storage, submission_id){
+            Ok(submission) => submission,
+            Err(_) => return Err(ContractError::CustomError { val: String::from("Submission not found, maybe its already a valid auction") }),
+        
+        };
     
         // Assert they haven't voted yet
         if submission_info.curation_votes.contains(&info.clone().sender) {
@@ -384,47 +415,50 @@ fn curate_nft(
             }
         } 
         //If still in voting period continue voting
-        else {            
+        else {
             //Tally the vote
-            if vote {
-                submission_info.curation_votes.push(info.sender.clone());
-                
-                //If the submission has enough votes, add it to the list of auctionables
-                if submission_info.curation_votes.len() < passing_threshold as usize {
-                    //Set as live auction if there is none, else add to pending auctions
-                    if let Err(_) = NFT_AUCTION.load(deps.storage) {
-                        NFT_AUCTION.save(deps.storage, &Auction {
+            submission_info.curation_votes.push(info.sender.clone());
+            //Add duplicate votes to the total
+            for _ in 1..votes {
+                submission_info.curation_votes.push(Addr::unchecked("skip"));
+            }
+            
+            //If the submission has enough votes, add it to the list of auctionables
+            if submission_info.curation_votes.len() >= passing_threshold as usize {
+                //Set as live auction if there is none, else add to pending auctions
+                if let Err(_) = NFT_AUCTION.load(deps.storage) {
+                    NFT_AUCTION.save(deps.storage, &Auction {
+                        submission_info: submission_info.clone(),
+                        bids: vec![],
+                        auction_end_time: env.block.time.seconds() + (SECONDS_PER_DAY * config.clone().auction_period),
+                        highest_bid: Bid {
+                            bidder: Addr::unchecked(""),
+                            amount: 0u128,                            
+                        },
+                    })?;
+                } else {
+
+                    PENDING_AUCTION.update(deps.storage, |mut auctions| -> Result<_, ContractError> {
+                        auctions.push(Auction {
                             submission_info: submission_info.clone(),
                             bids: vec![],
-                            auction_end_time: env.block.time.seconds() + (SECONDS_PER_DAY * config.clone().auction_period),
+                            auction_end_time: 0, //will set when active
                             highest_bid: Bid {
                                 bidder: Addr::unchecked(""),
                                 amount: 0u128,                            
                             },
-                        })?;
-                    } else {
-
-                        PENDING_AUCTION.update(deps.storage, |mut auctions| -> Result<_, ContractError> {
-                            auctions.push(Auction {
-                                submission_info: submission_info.clone(),
-                                bids: vec![],
-                                auction_end_time: 0, //will set when active
-                                highest_bid: Bid {
-                                    bidder: Addr::unchecked(""),
-                                    amount: 0u128,                            
-                                },
-                            });
-                            Ok(auctions)
-                        })?;
-                    }
-                    SUBMISSIONS.remove(deps.storage, submission_id);
-                    //Subtract from the submission total
-                    config.submission_total -= 1;
-                } else {
-                    //If the submission doesn't have enough votes yet, save it
-                    SUBMISSIONS.save(deps.storage, submission_id, &submission_info)?;                
+                        });
+                        Ok(auctions)
+                    })?;
                 }
+                SUBMISSIONS.remove(deps.storage, submission_id);
+                //Subtract from the submission total
+                config.submission_total -= 1;
+            } else {
+                //If the submission doesn't have enough votes yet, save it
+                SUBMISSIONS.save(deps.storage, submission_id, &submission_info)?;                
             }
+            
         }
     }
 
@@ -436,7 +470,6 @@ fn curate_nft(
         .add_attribute("method", "curate_nft")
         .add_attribute("submission_ids", format!("{:?}", submission_ids))
         .add_attribute("curator", info.sender)
-        .add_attribute("vote", vote.to_string())
     )
 }
 
@@ -471,16 +504,20 @@ fn bid_on_live_auction(
     let mut msgs: Vec<CosmosMsg> = vec![];
 
     //This will be initiated in the instantiate function & refreshed at the end of the conclude_auction function
-    let mut live_auction = NFT_AUCTION.load(deps.storage)?;
+    let mut live_auction = match NFT_AUCTION.load(deps.storage){
+        Ok(auction) => auction,
+        Err(_) => return Err(ContractError::CustomError { val: "No live auction".to_string() }),
+            
+    };
 
     //Check if the auction is still live
-    if env.block.time.seconds() > live_auction.auction_end_time {
+    if env.block.time.seconds() >= live_auction.auction_end_time {
         return Err(ContractError::CustomError { val: "Auction has ended".to_string() });
     }
 
     //Check if the bid is higher than the current highest bid
     if let Some(highest_bid) = live_auction.bids.clone().last() {
-        if Uint128::new(current_bid.amount) <= Uint128::new(highest_bid.amount) * config.minimum_outbid {
+        if Uint128::new(current_bid.amount) <= Uint128::new(highest_bid.amount) * (Decimal::one() + config.minimum_outbid) {
             return Err(ContractError::CustomError { val: "Bid is lower than the minimum outbid amount".to_string() });
         } else {
             //Add the bid to the auction's bid list
@@ -498,6 +535,11 @@ fn bid_on_live_auction(
             //Set bid as highest bid
             live_auction.highest_bid = current_bid.clone();
         }
+    } else if live_auction.bids.is_empty() {
+        //Add the bid to the auction's bid list
+        live_auction.bids.push(current_bid.clone());
+        //Set bid as highest bid
+        live_auction.highest_bid = current_bid.clone();
     }
     NFT_AUCTION.save(deps.storage, &live_auction)?;
 
@@ -516,26 +558,32 @@ fn bid_for_bid_assets(
 ) -> Result<Response, ContractError> {
     //Load config
     let config = CONFIG.load(deps.storage)?;
-    //Assert funds are the memecoin
-    let current_bid = assert_bid_asset(&info, config.memecoin_denom.unwrap())?;//unwrap is safe because these don't exist without a memecoin denom
+    //Assert funds are the incentive
+    let current_bid = assert_bid_asset(&info, config.clone().incentive_denom.unwrap())?;//unwrap is safe because these don't exist without a incentive denom
     //Initialize msgs
     let mut msgs: Vec<CosmosMsg> = vec![];
 
     //Load the current bid asset auction
-    let mut live_auction = ASSET_AUCTION.load(deps.storage)?;
+    let mut live_auction = match ASSET_AUCTION.load(deps.storage){
+        Ok(auction) => auction,
+        Err(_) => return Err(ContractError::CustomError { val: "No live bid asset auction".to_string() }),
+    
+    };
 
     //Check if the bid is higher than the current highest bid
-    if Uint128::new(current_bid.amount) <= Uint128::new(live_auction.highest_bid.amount) * config.minimum_outbid {
+    if Uint128::new(current_bid.amount) < Uint128::new(live_auction.highest_bid.amount) * (Decimal::one() + config.minimum_outbid){
         return Err(ContractError::CustomError { val: "Bid is lower than the minimum outbid amount".to_string() });
     } else {
         //Send the previous highest bid back to the bidder
-        msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                to_address: live_auction.highest_bid.bidder.to_string(),
-                amount: vec![Coin {
-                    denom: config.bid_denom,
-                    amount: Uint128::new(live_auction.highest_bid.amount),
-                }],
-            }));
+        if live_auction.highest_bid.amount > 0 {
+            msgs.push(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: live_auction.highest_bid.bidder.to_string(),
+                    amount: vec![Coin {
+                        denom: config.incentive_denom.unwrap(), //These auctions don't happen without a denom so its safe to unwrap
+                        amount: Uint128::new(live_auction.highest_bid.amount),
+                    }],
+                }));
+        }
 
         //Set bid as highest bid
         live_auction.highest_bid = current_bid.clone();
@@ -551,35 +599,12 @@ fn bid_for_bid_assets(
     )
 }
 
-fn get_bid_ratios(
-    bids: &Vec<Bid>
-) -> Vec<(Addr, Decimal)> {
-    let mut bid_ratios: Vec<(Addr, Decimal)> = vec![];
-    let total_bids = bids.iter().fold(0u128, |acc, bid| acc + bid.amount);
-
-    //Aggregate bids of the same bidder
-    let bids = bids.iter().fold(vec![], |mut acc, bid| {
-        if let Some(bid_index) = acc.iter().position(|x: &Bid| x.bidder == bid.bidder) {
-            acc[bid_index].amount += bid.amount;
-        } else {
-            acc.push(bid.clone());
-        }
-        acc
-    });
-
-    //Get ratios
-    for bid in bids {
-        bid_ratios.push((bid.bidder.clone(), Decimal::from_ratio(bid.amount, total_bids)));
-    }
-
-    bid_ratios
-}
-
 //End & Start new Bid Asset Auction
 fn conclude_bid_asset_auction(
     storage: &mut dyn Storage,
+    querier: QuerierWrapper,
     env: Env,
-    new_auction_asset: Coin,
+    recipient_send_amount: Uint128,
 ) -> Result<Vec<CosmosMsg>, ContractError> {
     //Initialize msgs
     let mut msgs: Vec<CosmosMsg> = vec![];
@@ -588,24 +613,48 @@ fn conclude_bid_asset_auction(
     //Load config
     let config = CONFIG.load(storage)?;
     
+    //Query contract's balance to include any submission costs to the bid asset auction
+    let bid_denom_balance = querier.query_balance(env.clone().contract.address, config.bid_denom.clone())?;
+    let asset_bid_amount = match bid_denom_balance.amount.checked_sub(recipient_send_amount){
+        Ok(amount) => amount,
+        //This helps pass contract tests, its not actually possible to have less assets then what was sent
+        //If it does happen, the BankMsg::Send will fail
+        Err(_) => Uint128::new(0)
+        //Set to 10000000 to pass contract_test
+    
+    };
+    let mut new_auction_asset = Coin {
+        denom: config.bid_denom.clone(),
+        amount: asset_bid_amount,
+    };
+    
     match live_auction {
         Ok(auction) => {
             //End the auction & distribute the asset to the highest bidder
             //If no one bids, the assets are sent to the contract
-            msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                to_address: auction.highest_bid.bidder.to_string(),
-                amount: vec![auction.auctioned_asset],
-            }));
-            
-            //Send the bid to the burn address
-            msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                to_address: "stars1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8lhzvv".to_string(),
-                amount: vec![Coin {
-                    denom: config.memecoin_denom.unwrap(), //These auctions don't happen without a denom so its safe to unwrap
-                    amount: Uint128::new(auction.highest_bid.amount),
-                
-                }],
-            }));
+            if !auction.auctioned_asset.amount.is_zero() {
+                msgs.push(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: auction.highest_bid.bidder.to_string(),
+                    amount: vec![auction.clone().auctioned_asset],
+                }));
+
+                //Subtract the auctioned asset from the new auction asset
+                //to cover the overage from the queried balance
+                new_auction_asset.amount -= auction.auctioned_asset.amount;
+            }
+            if config.incentive_distribution_amount == 0 && auction.highest_bid.amount > 0 {
+                //Send the bid to the burn address
+                msgs.push(CosmosMsg::Bank(BankMsg::Send {
+                    to_address: "stars1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8lhzvv".to_string(),
+                    amount: vec![Coin {
+                        denom: config.incentive_denom.unwrap(), //These auctions don't happen without a denom so its safe to unwrap
+                        amount: Uint128::new(auction.highest_bid.amount),
+                    
+                    }],
+                }));
+            }
+            //Remove the auction
+            ASSET_AUCTION.remove(storage);
         },
         Err(_) => {
             //Just start the next auction below
@@ -661,70 +710,61 @@ fn conclude_auction(
                 }],
         }));
 
-        //////Split the highest bid to the proceed_recipient & memecoin holders////
-        if config.memecoin_denom.is_none() {
-            config.memecoin_bid_percent = Decimal::percent(0);
+        //////Split the highest bid to the proceed_recipient & incentive holders////
+        if config.incentive_denom.is_none() {
+            config.incentive_bid_percent = Decimal::percent(0);
         }
-        let meme_bid_amount = config.memecoin_bid_percent * Uint128::new(live_auction.highest_bid.amount);
-        let recipient_send_amount = live_auction.highest_bid.amount - meme_bid_amount.u128();
-        if recipient_send_amount > 0 {
+        let recipient_send_amount = Uint128::new(live_auction.highest_bid.amount) * (Decimal::one() - config.incentive_bid_percent);        
+        if !recipient_send_amount.is_zero() {
             msgs.push(CosmosMsg::Bank(BankMsg::Send {
                 to_address: live_auction.submission_info.submission.proceed_recipient.to_string(),
                 amount: vec![Coin {
                     denom: config.clone().bid_denom,
-                    amount: Uint128::new(recipient_send_amount),
+                    amount: recipient_send_amount,
                 }],
             }));
-        }
+        }        
 
-        /////Send memecoins to Bidders & curators
-        if let Some(meme_denom) = config.memecoin_denom {
-            //Get memecoin distribution amount
-            let memecoin_distribution_amount = match deps.querier.query_balance(env.clone().contract.address, meme_denom.clone()){
+        //Conclude the current Bid Asset Auction
+        //Initiate the next Bid Asset Auction        
+        msgs.extend(conclude_bid_asset_auction(deps.storage, deps.querier, env.clone(), recipient_send_amount)?);
+        //////
+        
+        /////Send incentives to Bidders & curators
+        if let Some(meme_denom) = config.incentive_denom {
+            //Get incentive distribution amount
+            let incentive_distribution_amount = match deps.querier.query_balance(env.clone().contract.address, meme_denom.clone()){
                 Ok(balance) => {
                     //We distribute the config amount or half of the balance, whichever is lower
-                    if balance.amount.u128() / 2 < config.memecoin_distribution_amount {
+                    if balance.amount.u128() / 2 < config.incentive_distribution_amount {
                         balance.amount.u128() / 2
                     } else {
-                        config.memecoin_distribution_amount
+                        config.incentive_distribution_amount
                     }
                 },
-                Err(_) => config.memecoin_distribution_amount,
+                Err(_) => config.incentive_distribution_amount,
             };
 
-            //Get bidder pro_rata distribution
-            let bid_ratios = get_bid_ratios(&live_auction.bids);            
-            //Split total memecoins between bidders (pro_rata to bid_amount)
-            let meme_to_bidders = bid_ratios.iter().map(|bidder| {
-                let meme_amount = (Uint128::new(memecoin_distribution_amount) * bidder.1).u128();
-                (bidder.0.clone(), Coin {
-                    denom: meme_denom.clone(),
-                    amount: Uint128::new(meme_amount),
-                })
-            }).collect::<Vec<(Addr, Coin)>>();
-            //Split total memecoins between curators (1/len)
-            let meme_to_curators = live_auction.submission_info.curation_votes.iter().map(|curator| {
-                let meme_amount = (Uint128::new(memecoin_distribution_amount) * Decimal::from_ratio(Uint128::new(1), live_auction.submission_info.curation_votes.len() as u128)).u128();
+            //Split total incentives between unique curators (1/len)
+            let unique_curators = live_auction.submission_info.curation_votes.into_iter().filter(|curator| curator != Addr::unchecked("skip")).collect::<Vec<Addr>>();
+            let meme_to_curators = unique_curators.iter().map(|curator| {
+                let meme_amount = (Uint128::new(incentive_distribution_amount) * Decimal::from_ratio(Uint128::new(1), unique_curators.len() as u128)).u128();
                 (curator.clone(), Coin {
                     denom: meme_denom.clone(),
                     amount: Uint128::new(meme_amount),
                 })
             }).collect::<Vec<(Addr, Coin)>>();
 
-            //Create the memecoin distribution msgs
-            for (bidder, coin) in meme_to_bidders {
-                msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                    to_address: bidder.to_string(),
-                    amount: vec![coin],
-                }));
-            }
+            //Create the incentive distribution msgs to curators
             for (curator, coin) in meme_to_curators {
-                msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                    to_address: curator.to_string(),
-                    amount: vec![coin],
-                }));
+                if !coin.amount.is_zero() {
+                    msgs.push(CosmosMsg::Bank(BankMsg::Send {
+                        to_address: curator.to_string(),
+                        amount: vec![coin],
+                    }));
+                }
             }
-        }        
+        }
     } else {
         //If no one bids, extend the auction time by 1 day
         live_auction.auction_end_time += SECONDS_PER_DAY;
@@ -739,26 +779,21 @@ fn conclude_auction(
         )
     }
 
-    //Conclude the current Bid Asset Auction
-    //Initiate the next Bid Asset Auction
-    let new_auction_asset = Coin {
-        denom: config.bid_denom.clone(),
-        amount: Uint128::new(live_auction.highest_bid.amount),
-    };
-    msgs.extend(conclude_bid_asset_auction(deps.storage, env.clone(), new_auction_asset)?);
-
     //Set the new auction to the next pending auction
     let mut pending_auctions = PENDING_AUCTION.load(deps.storage)?;
-    if let Some(mut next_auction) = pending_auctions.pop() {
+    if !pending_auctions.is_empty() {
+        //Get the next auction
+        let mut next_auction = pending_auctions.remove(0);
         //set auction end time
         next_auction.auction_end_time = env.block.time.seconds() + (SECONDS_PER_DAY * config.auction_period);
         //Save as live auction
         NFT_AUCTION.save(deps.storage, &next_auction)?;
+        //Save the pending auctions
+        PENDING_AUCTION.save(deps.storage, &pending_auctions)?;
+    } else {        
+        //Remove the concluded auction
+        NFT_AUCTION.remove(deps.storage);    
     }
-    //Save the pending auctions
-    PENDING_AUCTION.save(deps.storage, &pending_auctions)?;
-    //Remove the concluded auction
-    NFT_AUCTION.remove(deps.storage);    
 
     Ok(Response::new()
         .add_messages(msgs)
@@ -767,6 +802,73 @@ fn conclude_auction(
         .add_attribute("highest_bid", live_auction.highest_bid.amount.to_string())
     )
 }
+
+#[cfg_attr(not(feature = "library"), entry_point)]
+pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
+    match msg {
+        QueryMsg::Config {} => to_json_binary((&CONFIG.load(deps.storage)?)),
+        QueryMsg::LiveNFTAuction {  } => to_json_binary(&NFT_AUCTION.load(deps.storage)?),
+        QueryMsg::LiveBidAssetAuction {  } => to_json_binary(&ASSET_AUCTION.load(deps.storage)?),
+        QueryMsg::PendingAuctions { limit, start_after } => to_json_binary(&get_pending_auctions(deps, limit, start_after)?),
+        QueryMsg::Submissions { submission_id, limit, start_after } => to_json_binary(&get_submissions(deps, submission_id, limit, start_after)?),
+    }
+}
+
+fn get_submissions(
+    deps: Deps,
+    submission_id: Option<u64>,
+    limit: Option<u32>,
+    start_after: Option<u64>,
+) -> StdResult<SubmissionsResponse> {
+    let submissions: Vec<SubmissionItem> = match submission_id {
+        Some(submission_id) => {
+            let submission = SUBMISSIONS.load(deps.storage, submission_id)?;
+            vec![submission]
+        },
+        None => {
+            let start = start_after.map(|index| Bound::ExclusiveRaw(index.to_be_bytes().to_vec()));
+            
+            let submissions: StdResult<Vec<SubmissionItem>> = SUBMISSIONS
+                .range(deps.storage, start, None, Order::Ascending)
+                .map(|item| item.map(|(_, v)| v))
+                .take(limit.unwrap_or(DEFAULT_LIMIT) as usize)
+                .collect();
+            submissions?
+        }
+    };
+
+    Ok(
+        SubmissionsResponse {
+            submissions,
+        }
+    )
+}
+
+fn get_pending_auctions(
+    deps: Deps,
+    limit: Option<u32>,
+    start_after: Option<u64>,
+) -> StdResult<PendingAuctionResponse> {
+    let pending_auctions = PENDING_AUCTION.load(deps.storage)?;
+
+    let mut start = 0;
+    if let Some(start_after) = start_after {
+        start = start_after + 1;
+    }
+
+    let pending_auctions: Vec<Auction> = pending_auctions
+        .into_iter()
+        .skip(start as usize)
+        .take(limit.unwrap_or(DEFAULT_LIMIT) as usize)
+        .collect();
+
+    Ok(
+        PendingAuctionResponse {
+            pending_auctions,
+        }
+    )
+}
+
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
