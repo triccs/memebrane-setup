@@ -52,8 +52,8 @@ pub fn instantiate(
                 info: CollectionInfo { 
                     creator: String::from("Reverberating Brane Waves"), 
                     description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
-                    image: todo!(), //"ipfs://CREATE AN IPFS LINK".to_string(), 
-                    external_link: Some(String::from("https://twitter.com/insneinthebrane")),
+                    image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
+                    external_link: Some(String::from("https://twitter.com/the_memebrane")),
                     explicit_content: Some(false), 
                     start_trading_time: None, 
                     royalty_info: Some(RoyaltyInfoResponse { 

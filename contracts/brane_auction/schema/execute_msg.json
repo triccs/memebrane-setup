@@ -1,0 +1,238 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ExecuteMsg",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": [
+        "submit_nft"
+      ],
+      "properties": {
+        "submit_nft": {
+          "type": "object",
+          "required": [
+            "proceed_recipient",
+            "token_uri"
+          ],
+          "properties": {
+            "proceed_recipient": {
+              "type": "string"
+            },
+            "token_uri": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Submissions have 7 days to get votes, after 7 days any votes will delete the submission",
+      "type": "object",
+      "required": [
+        "vote_to_curate"
+      ],
+      "properties": {
+        "vote_to_curate": {
+          "type": "object",
+          "required": [
+            "submission_ids"
+          ],
+          "properties": {
+            "submission_ids": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "bid_for_nft"
+      ],
+      "properties": {
+        "bid_for_nft": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "bid_for_assets"
+      ],
+      "properties": {
+        "bid_for_assets": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Transfer NFT to highest bidder & handle incentive distributions",
+      "type": "object",
+      "required": [
+        "conclude_auction"
+      ],
+      "properties": {
+        "conclude_auction": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "migrate_contract"
+      ],
+      "properties": {
+        "migrate_contract": {
+          "type": "object",
+          "required": [
+            "new_code_id"
+          ],
+          "properties": {
+            "new_code_id": {
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_config"
+      ],
+      "properties": {
+        "update_config": {
+          "type": "object",
+          "properties": {
+            "auction_period": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "bid_denom": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "curation_threshold": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "incentive_bid_percent": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "incentive_denom": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "incentive_distribution_amount": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint128",
+              "minimum": 0.0
+            },
+            "minimum_outbid": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/Decimal"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "mint_cost": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint128",
+              "minimum": 0.0
+            },
+            "owner": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "submission_cost": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint128",
+              "minimum": 0.0
+            },
+            "submission_limit": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "submission_vote_period": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  ],
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    }
+  }
+}

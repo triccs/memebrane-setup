@@ -19,6 +19,8 @@ pub struct InstantiateMsg {
     /// First submission for the first NFT auction of the collection
     pub first_submission: SubmissionInfo,
     ///Mint cost
+    /// testnet: 50_000_000u128
+    /// mainnet: 5_000_000u128
     pub mint_cost: u128,
 }
 
