@@ -23,7 +23,7 @@ mod tests {
             crate::contracts::execute,
             crate::contracts::instantiate,
             crate::contracts::query,
-        );
+        ).with_reply(crate::contracts::reply);
         Box::new(contract)
     }
 

@@ -26,7 +26,8 @@ pub struct SubmissionInfo {
 #[cw_serde]
 pub struct SubmissionItem {
     pub submission: SubmissionInfo,
-    pub curation_votes: Vec<Addr>,
+    pub curators: Vec<Addr>,
+    pub votes: u64,
     pub submission_end_time: u64, //in seconds
 }
 

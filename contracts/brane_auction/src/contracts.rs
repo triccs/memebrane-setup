@@ -118,7 +118,8 @@ pub fn instantiate(
                 submitter: info.sender.clone(),
                 ..msg.first_submission
             },
-            curation_votes: vec![],
+            curators: vec![],
+            votes: 0u64,
             submission_end_time: env.block.time.seconds() + (VOTE_PERIOD * SECONDS_PER_DAY),
         },
         bids: vec![],
@@ -318,7 +319,8 @@ fn submit_nft(
             proceed_recipient: deps.api.addr_validate(&proceed_recipient)?,
             token_uri,
         },
-        curation_votes: vec![],
+        curators: vec![],
+        votes: 0u64,
         submission_end_time: env.block.time.seconds() + (config.submission_vote_period * SECONDS_PER_DAY),
     };
 
@@ -401,13 +403,13 @@ fn curate_nft(
         };
     
         // Assert they haven't voted yet
-        if submission_info.curation_votes.contains(&info.clone().sender) {
+        if submission_info.curators.contains(&info.clone().sender) {
             continue;
         }
         /// Assert the submission is still in the voting period
         //If its past the submission period and the submission doesn't have enough votes, remove it
         if env.block.time.seconds() > submission_info.submission_end_time {
-            if submission_info.curation_votes.len() < passing_threshold as usize {
+            if submission_info.votes < passing_threshold as u64 {
                 SUBMISSIONS.remove(deps.storage, submission_id);
                 //Subtract from the submission total
                 config.submission_total -= 1;
@@ -417,14 +419,12 @@ fn curate_nft(
         //If still in voting period continue voting
         else {
             //Tally the vote
-            submission_info.curation_votes.push(info.sender.clone());
-            //Add duplicate votes to the total
-            for _ in 1..votes {
-                submission_info.curation_votes.push(Addr::unchecked("skip"));
-            }
+            submission_info.curators.push(info.sender.clone());
+            submission_info.votes += votes;
+
             
             //If the submission has enough votes, add it to the list of auctionables
-            if submission_info.curation_votes.len() >= passing_threshold as usize {
+            if submission_info.votes >= passing_threshold as u64 {
                 //Set as live auction if there is none, else add to pending auctions
                 if let Err(_) = NFT_AUCTION.load(deps.storage) {
                     NFT_AUCTION.save(deps.storage, &Auction {
@@ -746,9 +746,8 @@ fn conclude_auction(
             };
 
             //Split total incentives between unique curators (1/len)
-            let unique_curators = live_auction.submission_info.curation_votes.into_iter().filter(|curator| curator != Addr::unchecked("skip")).collect::<Vec<Addr>>();
-            let meme_to_curators = unique_curators.iter().map(|curator| {
-                let meme_amount = (Uint128::new(incentive_distribution_amount) * Decimal::from_ratio(Uint128::new(1), unique_curators.len() as u128)).u128();
+            let meme_to_curators = live_auction.submission_info.curators.iter().map(|curator| {
+                let meme_amount = (Uint128::new(incentive_distribution_amount) * Decimal::from_ratio(Uint128::new(1), live_auction.submission_info.curators.len() as u128)).u128();
                 (curator.clone(), Coin {
                     denom: meme_denom.clone(),
                     amount: Uint128::new(meme_amount),
