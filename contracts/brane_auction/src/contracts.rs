@@ -95,7 +95,7 @@ pub fn instantiate(
         current_token_id: 0,
         current_submission_id: 0,
         minter_addr: msg.clone().minter_addr.unwrap_or_else(|| "".to_string()),
-        mint_cost: msg.mint_cost,
+        mint_cost: msg.mint_cost as u128,
         submission_cost: 10_000_000u128,
         submission_limit: 333u64,
         submission_total: 0u64,
