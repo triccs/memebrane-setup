@@ -40,7 +40,7 @@ pub fn instantiate(
     let mut submsgs: Vec<SubMsg> = vec![];
 
 
-
+    // Need to send 250_000_000ustars to initialize the collection
     if let Some(sg721_code_id) = msg.sg721_code_id {
         //instantiate the Collection
         let collection_msg = Sg2ExecuteMsg::CreateMinter (CreateMinterMsg::<Option<String>> {
@@ -50,7 +50,7 @@ pub fn instantiate(
                 name: String::from("The International Brane Wave"), 
                 symbol: String::from("BRANE"), 
                 info: CollectionInfo { 
-                    creator: String::from("Reverberating Brane Waves"), 
+                    creator:env.contract.address.to_string(), 
                     description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
                     image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
                     external_link: Some(String::from("https://twitter.com/the_memebrane")),

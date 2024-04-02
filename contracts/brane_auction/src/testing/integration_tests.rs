@@ -192,7 +192,7 @@ mod tests {
                 proceed_recipient: Addr::unchecked("proceed_recipient0000"),
                 token_uri: String::from("ipfs://imageFolderCID/1.png"),
             },
-            mint_cost: 1000u128,
+            mint_cost: 1000u64,
         };
 
         let auction_contract_addr = app

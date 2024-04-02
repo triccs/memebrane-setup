@@ -32,9 +32,9 @@
       ]
     },
     "mint_cost": {
-      "description": "Mint cost testnet: 50_000_000u128 mainnet: 5_000_000u128",
+      "description": "Mint cost testnet: 50_000_000u64 mainnet: 5_000_000u64",
       "type": "integer",
-      "format": "uint128",
+      "format": "uint64",
       "minimum": 0.0
     },
     "minter_addr": {
