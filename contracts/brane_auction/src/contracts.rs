@@ -50,7 +50,7 @@ pub fn instantiate(
                 name: String::from("The International Brane Wave"), 
                 symbol: String::from("BRANE"), 
                 info: CollectionInfo { 
-                    creator:env.contract.address.to_string(), 
+                    creator: env.contract.address.to_string(), 
                     description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
                     image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
                     external_link: Some(String::from("https://twitter.com/the_memebrane")),
@@ -123,7 +123,7 @@ pub fn instantiate(
             submission_end_time: env.block.time.seconds() + (VOTE_PERIOD * SECONDS_PER_DAY),
         },
         bids: vec![],
-        auction_end_time: env.block.time.seconds() + (SECONDS_PER_DAY * config.auction_period),
+        auction_end_time: env.block.time.seconds() + 1200,//(SECONDS_PER_DAY * config.auction_period),
         highest_bid: Bid {
             bidder: Addr::unchecked(""),
             amount: 0u128,
