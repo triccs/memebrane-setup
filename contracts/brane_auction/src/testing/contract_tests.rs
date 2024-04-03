@@ -30,7 +30,7 @@ mod tests {
         let _res = instantiate(deps.as_mut(), mock_env(), v_info, msg).unwrap();
 
         //Query live auction
-        let query_msg = QueryMsg::LiveNFTAuction { };
+        let query_msg = QueryMsg::LiveNftAuction { };
         let res = query(deps.as_ref(), mock_env(), query_msg).unwrap();
 
         let resp: Auction = from_json(&res).unwrap();
@@ -228,7 +228,7 @@ mod tests {
 
 
         //Query live auction to confirm bid
-        let query_msg = QueryMsg::LiveNFTAuction { };
+        let query_msg = QueryMsg::LiveNftAuction { };
         let res = query(deps.as_ref(), mock_env(), query_msg).unwrap();
 
         let resp: Auction = from_json(&res).unwrap();
@@ -346,7 +346,7 @@ mod tests {
         ).unwrap();
 
         //Query live auction to confirm pending auction was started
-        let query_msg = QueryMsg::LiveNFTAuction { };
+        let query_msg = QueryMsg::LiveNftAuction { };
         let res = query(deps.as_ref(), mock_env(), query_msg).unwrap();
 
         let resp: Auction = from_json(&res).unwrap();

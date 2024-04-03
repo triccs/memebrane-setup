@@ -698,7 +698,7 @@ fn conclude_auction(
         msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.clone().minter_addr,
             msg: to_json_binary(&Sg721ExecuteMsg::Mint::<Option<String>, Option<String>> {
-                owner: live_auction.highest_bid.bidder.to_string(),
+                owner: env.contract.address.to_string(),
                 token_id: config.current_token_id.to_string(),
                 token_uri: Some(live_auction.submission_info.submission.token_uri.clone()),
                 extension: None,
@@ -708,6 +708,15 @@ fn conclude_auction(
                     denom: String::from("ustars"),
                     amount: Uint128::new(config.mint_cost),
                 }],
+        }));
+        ///Transfer newly minted NFT to the bidder
+        msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
+            contract_addr: config.clone().minter_addr,
+            msg: to_json_binary(&Sg721ExecuteMsg::TransferNft::<Option<String>, Option<String>> { 
+                recipient: live_auction.highest_bid.bidder.to_string(),
+                token_id: config.current_token_id.to_string(),
+                })?,
+            funds: vec![],
         }));
 
         //////Split the highest bid to the proceed_recipient & incentive holders////
@@ -806,7 +815,7 @@ fn conclude_auction(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
         QueryMsg::Config {} => to_json_binary((&CONFIG.load(deps.storage)?)),
-        QueryMsg::LiveNFTAuction {  } => to_json_binary(&NFT_AUCTION.load(deps.storage)?),
+        QueryMsg::LiveNftAuction {  } => to_json_binary(&NFT_AUCTION.load(deps.storage)?),
         QueryMsg::LiveBidAssetAuction {  } => to_json_binary(&ASSET_AUCTION.load(deps.storage)?),
         QueryMsg::PendingAuctions { limit, start_after } => to_json_binary(&get_pending_auctions(deps, limit, start_after)?),
         QueryMsg::Submissions { submission_id, limit, start_after } => to_json_binary(&get_submissions(deps, submission_id, limit, start_after)?),

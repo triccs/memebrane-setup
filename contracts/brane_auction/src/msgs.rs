@@ -72,7 +72,7 @@ pub enum QueryMsg {
         start_after: Option<u64>
     },
     /// Return live auction info
-    LiveNFTAuction {},
+    LiveNftAuction {},
     /// Return bid asset auction info
     LiveBidAssetAuction {},
 }
