@@ -10,7 +10,7 @@ use url::Url;
 
 use sg2::msg::{CollectionParams, CreateMinterMsg, Sg2ExecuteMsg};
 use cw721::{TokensResponse, Cw721QueryMsg as Sg721QueryMsg};
-use sg721::{CollectionInfo, RoyaltyInfoResponse, ExecuteMsg as Sg721ExecuteMsg};
+use sg721::{CollectionInfo, RoyaltyInfoResponse, ExecuteMsg as Sg721ExecuteMsg, InstantiateMsg as Sg721InstantiateMsg};
 use crate::{error::ContractError, msgs::{Config, ExecuteMsg, InstantiateMsg, MigrateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::handle_collection_reply, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS}};
 
 
@@ -43,8 +43,26 @@ pub fn instantiate(
     // Need to send 250_000_000ustars to initialize the collection
     if let Some(sg721_code_id) = msg.sg721_code_id {
         //instantiate the Collection
-        let collection_msg = Sg2ExecuteMsg::CreateMinter (CreateMinterMsg::<Option<String>> {
-            init_msg: None,
+        let collection_msg = Sg2ExecuteMsg::CreateMinter (CreateMinterMsg::<Option<Sg721InstantiateMsg>> {
+            init_msg: Some(
+                Sg721InstantiateMsg {                    
+                    name: String::from("The International Brane Wave"), 
+                    symbol: String::from("BRANE"), 
+                    minter: env.contract.address.to_string(),
+                    collection_info: CollectionInfo { 
+                        creator: env.contract.address.to_string(), 
+                        description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
+                        image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
+                        external_link: Some(String::from("https://twitter.com/the_memebrane")),
+                        explicit_content: Some(false), 
+                        start_trading_time: None, 
+                        royalty_info: Some(RoyaltyInfoResponse { 
+                            payment_address: env.contract.address.to_string(), 
+                            share: Decimal::percent(1)
+                        }) 
+                    }
+                }
+            ),
             collection_params: CollectionParams { 
                 code_id: sg721_code_id, 
                 name: String::from("The International Brane Wave"), 
@@ -123,7 +141,7 @@ pub fn instantiate(
             submission_end_time: env.block.time.seconds() + (VOTE_PERIOD * SECONDS_PER_DAY),
         },
         bids: vec![],
-        auction_end_time: env.block.time.seconds() + 1200,//(SECONDS_PER_DAY * config.auction_period),
+        auction_end_time: env.block.time.seconds() + 300,//(SECONDS_PER_DAY * config.auction_period),
         highest_bid: Bid {
             bidder: Addr::unchecked(""),
             amount: 0u128,
@@ -698,7 +716,7 @@ fn conclude_auction(
         msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.clone().minter_addr,
             msg: to_json_binary(&Sg721ExecuteMsg::Mint::<Option<String>, Option<String>> {
-                owner: env.contract.address.to_string(),
+                owner: live_auction.highest_bid.bidder.to_string(),
                 token_id: config.current_token_id.to_string(),
                 token_uri: Some(live_auction.submission_info.submission.token_uri.clone()),
                 extension: None,
@@ -710,14 +728,14 @@ fn conclude_auction(
                 }],
         }));
         ///Transfer newly minted NFT to the bidder
-        msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-            contract_addr: config.clone().minter_addr,
-            msg: to_json_binary(&Sg721ExecuteMsg::TransferNft::<Option<String>, Option<String>> { 
-                recipient: live_auction.highest_bid.bidder.to_string(),
-                token_id: config.current_token_id.to_string(),
-                })?,
-            funds: vec![],
-        }));
+        // msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        //     contract_addr: config.clone().minter_addr,
+        //     msg: to_json_binary(&Sg721ExecuteMsg::TransferNft::<Option<String>, Option<String>> { 
+        //         recipient: live_auction.highest_bid.bidder.to_string(),
+        //         token_id: config.current_token_id.to_string(),
+        //         })?,
+        //     funds: vec![],
+        // }));
 
         //////Split the highest bid to the proceed_recipient & incentive holders////
         if config.incentive_denom.is_none() {
