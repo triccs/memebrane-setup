@@ -9,8 +9,10 @@ pub struct InstantiateMsg {
     /// making this an option makes testing easier & allows pre-existing collections to be added if they give the contract mint ability
     pub sg721_code_id: Option<u64>, //testnet: 2595, mainnet: 180
     /// Minter address
-    /// If you have an existing collection, pass the minter here to skip the instantiation
-    pub minter_addr: Option<String>, 
+    /// If you have an existing collection, pass the base-minter && sg721 here to skip the instantiation
+    pub minter_addr: Option<String>,     
+    pub sg721_addr: Option<String>, 
+    ///////
     pub base_factory_address: String, //testnet: stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx, mainnet: stars1klnzgwfvca8dnjeasx00v00f49l6nplnvnsxyc080ph2h8qxe4wss4d3ga
     /// Bid denom
     pub bid_denom: String,
@@ -91,11 +93,11 @@ pub struct Config {
     pub incentive_distribution_amount: u128,
     /// Percent of Bid to distribute to incentive holders
     pub incentive_bid_percent: Decimal,
-    /// Current token ID
-    pub current_token_id: u64,
     /// Current submission ID
     pub current_submission_id: u64,
-    /// Minter address
+    /// Collection Address
+    pub sg721_addr: String,
+    /// Base Minter address
     pub minter_addr: String,
     /// Stargaze Mint cost 
     /// Testnet: 50_000_000u128

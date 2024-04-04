@@ -50,6 +50,7 @@ pub const CONFIG: Item<Config> = Item::new("config");
 pub const SUBMISSIONS: Map<u64, SubmissionItem> = Map::new("submissions");
 pub const PENDING_AUCTION: Item<Vec<Auction>> = Item::new("pending_auctions");
 pub const NFT_AUCTION: Item<Auction> = Item::new("current_auction");
+pub const WINNING_BIDDER: Item<String> = Item::new("winning_nft_bidder");
 pub const ASSET_AUCTION: Item<BidAssetAuction> = Item::new("current_bid_asset_auction");
 
 

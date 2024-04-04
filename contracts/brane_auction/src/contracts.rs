@@ -9,17 +9,20 @@ use cw_storage_plus::Bound;
 use url::Url;
 
 use sg2::msg::{CollectionParams, CreateMinterMsg, Sg2ExecuteMsg};
+use base_minter::msg::ExecuteMsg as BaseMinterExecuteMsg;
 use cw721::{TokensResponse, Cw721QueryMsg as Sg721QueryMsg};
-use sg721::{CollectionInfo, RoyaltyInfoResponse, ExecuteMsg as Sg721ExecuteMsg, InstantiateMsg as Sg721InstantiateMsg};
-use crate::{error::ContractError, msgs::{Config, ExecuteMsg, InstantiateMsg, MigrateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::handle_collection_reply, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS}};
+use sg721::{CollectionInfo, RoyaltyInfoResponse, InstantiateMsg as Sg721InstantiateMsg};
+use crate::{error::ContractError, msgs::{Config, ExecuteMsg, InstantiateMsg, MigrateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::{handle_collection_reply, handle_mint_reply}, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS, WINNING_BIDDER}};
 
 
 // Contract name and version used for migration.
 const CONTRACT_NAME: &str = "brane_auction";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-//Constants
+//Constants: Reply IDs
 const COLLECTION_REPLY_ID: u64 = 1u64;
+const MINT_REPLY_ID: u64 = 2u64;
+//Constants
 const SECONDS_PER_DAY: u64 = 86400u64;
 const VOTE_PERIOD: u64 = 7u64;
 const AUCTION_PERIOD: u64 = 1u64;
@@ -39,7 +42,7 @@ pub fn instantiate(
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     let mut submsgs: Vec<SubMsg> = vec![];
 
-
+    
     // Need to send 250_000_000ustars to initialize the collection
     if let Some(sg721_code_id) = msg.sg721_code_id {
         //instantiate the Collection
@@ -110,8 +113,8 @@ pub fn instantiate(
         incentive_denom: msg.clone().incentive_denom,
         incentive_distribution_amount: 100_000_000u128,
         incentive_bid_percent: Decimal::percent(10),
-        current_token_id: 0,
         current_submission_id: 0,
+        sg721_addr: msg.clone().sg721_addr.unwrap_or_else(|| "".to_string()),
         minter_addr: msg.clone().minter_addr.unwrap_or_else(|| "".to_string()),
         mint_cost: msg.mint_cost as u128,
         submission_cost: 10_000_000u128,
@@ -307,7 +310,6 @@ fn submit_nft(
     token_uri: String,
 ) -> Result<Response, ContractError> {
     let mut config = CONFIG.load(deps.storage)?;
-    let mut msgs: Vec<CosmosMsg> = vec![];
     
     // Token URI must be a valid URL (ipfs, https, etc.)
     Url::parse(&token_uri).map_err(|_| ContractError::InvalidTokenURI { uri: token_uri.clone() })?;
@@ -702,6 +704,7 @@ fn conclude_auction(
     let mut config = CONFIG.load(deps.storage)?;
     //Initialize msgs
     let mut msgs: Vec<CosmosMsg> = vec![];
+    let mut sub_msgs: Vec<SubMsg> = vec![];
     //Load live auction
     let mut live_auction = NFT_AUCTION.load(deps.storage)?;
 
@@ -712,30 +715,21 @@ fn conclude_auction(
 
     //Mint the NFT & send the bid to the proceed_recipient
     if live_auction.highest_bid.amount > 0 {
-        //Mint the NFT to the highest bidder
-        msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
+        //Mint the NFT to the contract && set as a submsg to transfer to the winning bidder
+        let msg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: config.clone().minter_addr,
-            msg: to_json_binary(&Sg721ExecuteMsg::Mint::<Option<String>, Option<String>> {
-                owner: live_auction.highest_bid.bidder.to_string(),
-                token_id: config.current_token_id.to_string(),
-                token_uri: Some(live_auction.submission_info.submission.token_uri.clone()),
-                extension: None,
+            msg: to_json_binary(&BaseMinterExecuteMsg::Mint {
+                token_uri: live_auction.submission_info.submission.token_uri.clone(),
             })?,
             funds: vec![
                 Coin {
                     denom: String::from("ustars"),
                     amount: Uint128::new(config.mint_cost),
                 }],
-        }));
-        ///Transfer newly minted NFT to the bidder
-        // msgs.push(CosmosMsg::Wasm(WasmMsg::Execute {
-        //     contract_addr: config.clone().minter_addr,
-        //     msg: to_json_binary(&Sg721ExecuteMsg::TransferNft::<Option<String>, Option<String>> { 
-        //         recipient: live_auction.highest_bid.bidder.to_string(),
-        //         token_id: config.current_token_id.to_string(),
-        //         })?,
-        //     funds: vec![],
-        // }));
+        });
+        sub_msgs.push(SubMsg::reply_on_success(msg, MINT_REPLY_ID));
+        //Save winning bidder for transfer msg
+        WINNING_BIDDER.save(deps.storage, &live_auction.highest_bid.bidder.to_string())?;
 
         //////Split the highest bid to the proceed_recipient & incentive holders////
         if config.incentive_denom.is_none() {
@@ -900,6 +894,7 @@ fn get_pending_auctions(
 pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     match msg.id {
         COLLECTION_REPLY_ID => handle_collection_reply(deps, env, msg),
+        MINT_REPLY_ID => handle_mint_reply(deps, env, msg),
         id => Err(StdError::generic_err(format!("invalid reply id: {}", id))),
     }
 }

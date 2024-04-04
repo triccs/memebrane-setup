@@ -183,6 +183,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(mint_contract_addr.to_string()),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),

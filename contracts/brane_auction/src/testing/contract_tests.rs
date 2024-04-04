@@ -14,6 +14,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),
@@ -121,6 +122,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),
@@ -201,6 +203,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),
@@ -265,6 +268,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),
@@ -388,6 +392,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),
@@ -565,6 +570,7 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),
@@ -638,7 +644,7 @@ mod tests {
             incentive_denom: Some(String::from("different")),
             incentive_distribution_amount: 0u128,
             incentive_bid_percent: Decimal::zero(),
-            current_token_id: 0u64,
+            sg721_addr: String::from("some_minter_address"),
             current_submission_id: 0u64,
             minter_addr: String::from("some_minter_address"),
             auction_period: 0u64,
