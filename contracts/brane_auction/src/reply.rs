@@ -64,7 +64,9 @@ pub fn handle_collection_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult
             CONFIG.save(deps.storage, &config)?;
 
             Ok(Response::new()
-            .add_attribute("mint_addr", config.clone().minter_addr))
+                .add_attribute("sg721_addr", config.clone().sg721_addr)
+                .add_attribute("base_minter_addr", config.clone().minter_addr)
+            )
         },
         
         Err(err) => {
