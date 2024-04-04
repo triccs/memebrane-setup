@@ -791,7 +791,6 @@ fn conclude_auction(
         NFT_AUCTION.save(deps.storage, &live_auction)?;
 
         return Ok(Response::new()
-            .add_messages(msgs)
             .add_attribute("method", "conclude_auction")
             .add_attribute("highest_bidder", "None")
             .add_attribute("highest_bid", live_auction.highest_bid.amount.to_string())
@@ -815,6 +814,7 @@ fn conclude_auction(
     }
 
     Ok(Response::new()
+        .add_submessages(sub_msgs)
         .add_messages(msgs)
         .add_attribute("method", "conclude_auction")
         .add_attribute("highest_bidder", live_auction.highest_bid.bidder)
