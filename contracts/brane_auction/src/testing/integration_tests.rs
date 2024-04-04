@@ -27,25 +27,24 @@ mod tests {
         Box::new(contract)
     }
 
-    //Mock NFT Mint Contract
+    
+    //Mock sg721 Contract
     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum Mint_MockExecuteMsg {
-        Mint {
-            owner: String,
+    pub enum sg721_MockExecuteMsg {
+        TransferNft {
+            recipient: String,
             token_id: String,
-            token_uri: Option<String>,
-            extension: Option<String>,
         }
     }
 
     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub struct Mint_MockInstantiateMsg {}
+    pub struct sg721_MockInstantiateMsg {}
 
     #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
     #[serde(rename_all = "snake_case")]
-    pub enum Mint_MockQueryMsg {
+    pub enum sg721_MockQueryMsg {
         Tokens {
             owner: String,
             start_after: Option<String>,
@@ -56,18 +55,18 @@ mod tests {
             limit: Option<u32>,
         }
     }
-
-    pub fn mint_contract() -> Box<dyn Contract<Empty>> {
+    
+    pub fn sg721_contract() -> Box<dyn Contract<Empty>> {
         let contract = ContractWrapper::new(
-            |deps, _, info, msg: Mint_MockExecuteMsg| -> StdResult<Response> {
+            |deps, _, info, msg: sg721_MockExecuteMsg| -> StdResult<Response> {
                 Ok(Response::default())
             },
-            |_, _, _, _: Mint_MockInstantiateMsg| -> StdResult<Response> {
+            |_, _, _, _: sg721_MockInstantiateMsg| -> StdResult<Response> {
                 Ok(Response::default())
             },
-            |_, _, msg: Mint_MockQueryMsg| -> StdResult<Binary> {
+            |_, _, msg: sg721_MockQueryMsg| -> StdResult<Binary> {
                 match msg {
-                    Mint_MockQueryMsg::Tokens { owner, start_after, limit } => {
+                    sg721_MockQueryMsg::Tokens { owner, start_after, limit } => {
                         if owner == "three_votes" {
                             Ok(to_json_binary(&TokensResponse {
                                 tokens: vec![                                    
@@ -89,7 +88,7 @@ mod tests {
                             })?)
                         }
                     },
-                    Mint_MockQueryMsg::AllTokens { start_after, limit } => {
+                    sg721_MockQueryMsg::AllTokens { start_after, limit } => {
                         Ok(to_json_binary(&TokensResponse {
                             tokens: vec![
                                 String::from("1"),
@@ -122,13 +121,50 @@ mod tests {
         Box::new(contract)
     }
 
+    //Mock NFT Mint Contract
+    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum Mint_MockExecuteMsg {
+        Mint {
+            token_uri: Option<String>,
+        }
+    }
+
+    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub struct Mint_MockInstantiateMsg {}
+
+    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub enum Mint_MockQueryMsg {
+    }
+    #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema)]
+    #[serde(rename_all = "snake_case")]
+    pub struct Mock_Response { }
+
+
+    pub fn mint_contract() -> Box<dyn Contract<Empty>> {
+        let contract = ContractWrapper::new(
+            |deps, _, info, msg: Mint_MockExecuteMsg| -> StdResult<Response> {
+                Ok(Response::default().add_attribute("token_id", "1"))
+            },
+            |_, _, _, _: Mint_MockInstantiateMsg| -> StdResult<Response> {
+                Ok(Response::default())
+            },
+            |_, _, msg: Mint_MockQueryMsg| -> StdResult<Binary> {
+                Ok(to_json_binary(&Mock_Response {})?)
+            },
+        );
+        Box::new(contract)
+    }
+
     fn mock_app() -> App {
         AppBuilder::new().build(|router, _, storage| {
             let bank = BankKeeper::new();
 
             bank.init_balance(
                 storage,
-                &Addr::unchecked("contract1"),
+                &Addr::unchecked("contract2"),
                 vec![coin(10_000_000, "ustars")],
             )
             .unwrap(); //contract1 = Auction contract
@@ -178,12 +214,26 @@ mod tests {
             )
             .unwrap();
 
+        //Instaniate sg721
+        let proxy_id = app.store_code(sg721_contract());
+
+        let sg721_contract_addr = app
+            .instantiate_contract(
+                proxy_id,
+                Addr::unchecked(ADMIN),
+                &Mint_MockInstantiateMsg {},
+                &[],
+                "test",
+                None,
+            )
+            .unwrap();
+
         //Instantiate Auction contract
         let auction_id = app.store_code(auction_contract());
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
-            sg721_addr: Some(String::from("some_minter_address")),
+            sg721_addr: Some(sg721_contract_addr.to_string()),
             minter_addr: Some(mint_contract_addr.to_string()),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
             bid_denom: String::from("cdt"),
@@ -428,7 +478,7 @@ mod tests {
                 .query_wasm_smart(auction_contract.addr(), &query_msg.clone())
                 .unwrap();
             assert_eq!(res.highest_bid, Bid {
-                bidder: Addr::unchecked("contract1"),
+                bidder: Addr::unchecked("contract2"),
                 amount: 0
             });
             

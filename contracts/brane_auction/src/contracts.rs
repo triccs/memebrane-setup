@@ -314,7 +314,7 @@ fn submit_nft(
     Url::parse(&token_uri).map_err(|_| ContractError::InvalidTokenURI { uri: token_uri.clone() })?;
 
     //If submission is from a non-holder, it costs Some(bid_asset)
-    match check_if_collection_holder(deps.as_ref(), config.clone().minter_addr, info.clone().sender){
+    match check_if_collection_holder(deps.as_ref(), config.clone().sg721_addr, info.clone().sender){
         Ok(votes) => {
             if votes == 0 {
                 //Check if the submission cost was sent                
@@ -355,7 +355,7 @@ fn submit_nft(
 
 fn check_if_collection_holder(
     deps: Deps,
-    minter_addr: String,
+    sg721_addr: String,
     sender: Addr,
 ) -> Result<u64, ContractError> {  
     //If sender is the founder, they are valid
@@ -365,7 +365,7 @@ fn check_if_collection_holder(
 
     //Check if the sender is a collection holder
     let token_info: TokensResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: minter_addr,
+        contract_addr: sg721_addr,
         msg: to_json_binary(&Sg721QueryMsg::Tokens { owner: sender.to_string(), start_after: None, limit: None })?,
     })).map_err(|_| ContractError::CustomError { val: "Failed to query collection, sender may not hold an NFT".to_string() })?;
 
@@ -390,7 +390,7 @@ fn curate_nft(
     }
 
     //Make sure the sender is a collection holder
-    let votes = check_if_collection_holder(deps.as_ref(), config.clone().minter_addr, info.clone().sender)?;
+    let votes = check_if_collection_holder(deps.as_ref(), config.clone().sg721_addr, info.clone().sender)?;
 
     //Error if votes are 0
     if votes == 0 {
@@ -400,7 +400,7 @@ fn curate_nft(
     //Get the Curation passing threshold
     let mut passing_threshold = 1u128;
     match deps.querier.query::<TokensResponse>(&QueryRequest::Wasm(WasmQuery::Smart {
-        contract_addr: config.clone().minter_addr,
+        contract_addr: config.clone().sg721_addr,
         msg: to_json_binary(&Sg721QueryMsg::AllTokens { start_after: None, limit: None })?,
     })){
         Ok(token_info) => {

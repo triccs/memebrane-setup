@@ -1,5 +1,6 @@
 
-use cosmwasm_std::{to_json_binary, CosmosMsg, DepsMut, Env, Reply, Response, StdError, StdResult, WasmMsg};
+use cosmwasm_std::{attr, to_json_binary, CosmosMsg, DepsMut, Env, QueryRequest, Reply, Response, StdError, StdResult, WasmMsg, WasmQuery};
+use cw721::{TokensResponse, Cw721QueryMsg as Sg721QueryMsg};
 use sg721::ExecuteMsg as Sg721ExecuteMsg;
 
 use crate::state::{CONFIG, WINNING_BIDDER};
@@ -61,6 +62,24 @@ pub fn handle_collection_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult
             //Save config
             CONFIG.save(deps.storage, &config)?;
 
+            let mut attrs = vec![
+                attr("sg721_addr", sg721_addr),
+                attr("base_minter_addr", base_minter_addr),
+            ];
+            //Query sg721 contract for Tokens & AllTokens as a test
+            if let Ok(res) = deps.querier.query::<TokensResponse>(&QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: config.clone().sg721_addr,
+                msg: to_json_binary(&Sg721QueryMsg::AllTokens { start_after: None, limit: None })?,
+            })) {
+                attrs.push(attr("all_tokens", format!("{:?}", res)));
+            }
+            if let Ok(res) = deps.querier.query::<TokensResponse>(&QueryRequest::Wasm(WasmQuery::Smart {
+                contract_addr: config.clone().sg721_addr,
+                msg: to_json_binary(&Sg721QueryMsg::Tokens { owner: env.contract.address.to_string(), start_after: None, limit: None })?,
+            })) {
+                attrs.push(attr("contract_tokens", format!("{:?}", res)));
+            }
+
             Ok(Response::new()
                 .add_attribute("sg721_addr", config.clone().sg721_addr)
                 .add_attribute("base_minter_addr", config.clone().minter_addr)
@@ -78,7 +97,6 @@ pub fn handle_collection_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult
 pub fn handle_mint_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Response> {
     match msg.result.into_result() {
         Ok(result) => {            
-            
             let mint_event = result
                 .events
                 .iter()
