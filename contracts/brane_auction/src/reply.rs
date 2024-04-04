@@ -28,9 +28,7 @@ pub fn handle_collection_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult
                     StdError::GenericErr { msg: String::from("unable to find mint address") }
                 })?
                 .value
-                .clone();
-
-            
+                .clone();           
             
                 let base_minter_event = result
                 .events

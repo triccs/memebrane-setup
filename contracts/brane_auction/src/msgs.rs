@@ -1,4 +1,4 @@
-use cosmwasm_std::{Addr, Decimal};
+use cosmwasm_std::{Addr, Decimal, Timestamp};
 use cosmwasm_schema::cw_serde;
 
 use crate::state::{Auction, SubmissionInfo, SubmissionItem};
@@ -56,6 +56,11 @@ pub enum ExecuteMsg {
         auction_period: Option<u64>,
     },
     //////
+}
+#[cw_serde]
+pub enum BaseMinterExecuteMsg {
+    Mint { token_uri: String },
+    UpdateStartTradingTime(Option<Timestamp>),
 }
 
 #[cw_serde]
