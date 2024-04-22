@@ -1,7 +1,7 @@
 use core::panic;
 
 use cosmwasm_std::{
-    attr, entry_point, from_json, has_coins, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, Querier, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery
+    attr, entry_point, has_coins, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, Querier, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery
 };
 use cw2::set_contract_version;
 
@@ -15,7 +15,7 @@ use crate::{error::ContractError, msgs::{Config, ExecuteMsg, BaseMinterExecuteMs
 
 
 // Contract name and version used for migration.
-const CONTRACT_NAME: &str = "brane_auction";
+const CONTRACT_NAME: &str = "pre_mint_auction";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 //Constants: Reply IDs
@@ -23,10 +23,11 @@ const COLLECTION_REPLY_ID: u64 = 1u64;
 const MINT_REPLY_ID: u64 = 2u64;
 //Constants
 const SECONDS_PER_DAY: u64 = 86400u64;
+const DEFAULT_LIMIT: u32 = 32u32;
+
 const VOTE_PERIOD: u64 = 7u64;
 const AUCTION_PERIOD: u64 = 1u64;
 const CURATION_THRESHOLD: Decimal = Decimal::percent(11);
-const DEFAULT_LIMIT: u32 = 32u32;
 
 //Minter costs
 const MINTER_COST: u128 = 250_000_000u128;
@@ -43,45 +44,29 @@ pub fn instantiate(
 
     
     // Need to send 250_000_000ustars to initialize the collection
-    if let Some(sg721_code_id) = msg.sg721_code_id {
+    if let Some(sg721_code_id) = msg.clone().sg721_code_id {
+
+        let collection_params = msg.clone().collection_params.unwrap_or_else(|| CollectionParams { 
+            code_id: sg721_code_id, 
+            name: String::from("The International Brane Wave"), 
+            symbol: String::from("BRANE"), 
+            info: CollectionInfo { 
+                creator: env.contract.address.to_string(), 
+                description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
+                image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
+                external_link: Some(String::from("https://twitter.com/the_memebrane")),
+                explicit_content: Some(false), 
+                start_trading_time: None, 
+                royalty_info: Some(RoyaltyInfoResponse { 
+                    payment_address: env.contract.address.to_string(), 
+                    share: Decimal::percent(1)
+                }) 
+            }
+        });
         //instantiate the Collection
         let collection_msg = Sg2ExecuteMsg::CreateMinter (CreateMinterMsg::<Option<Sg721InstantiateMsg>> {
-            init_msg: Some(
-                Sg721InstantiateMsg {                    
-                    name: String::from("The International Brane Wave"), 
-                    symbol: String::from("BRANE"), 
-                    minter: env.contract.address.to_string(),
-                    collection_info: CollectionInfo { 
-                        creator: env.contract.address.to_string(), 
-                        description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
-                        image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
-                        external_link: Some(String::from("https://twitter.com/the_memebrane")),
-                        explicit_content: Some(false), 
-                        start_trading_time: None, 
-                        royalty_info: Some(RoyaltyInfoResponse { 
-                            payment_address: env.contract.address.to_string(), 
-                            share: Decimal::percent(1)
-                        }) 
-                    }
-                }
-            ),
-            collection_params: CollectionParams { 
-                code_id: sg721_code_id, 
-                name: String::from("The International Brane Wave"), 
-                symbol: String::from("BRANE"), 
-                info: CollectionInfo { 
-                    creator: env.contract.address.to_string(), 
-                    description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
-                    image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
-                    external_link: Some(String::from("https://twitter.com/the_memebrane")),
-                    explicit_content: Some(false), 
-                    start_trading_time: None, 
-                    royalty_info: Some(RoyaltyInfoResponse { 
-                        payment_address: env.contract.address.to_string(), 
-                        share: Decimal::percent(1)
-                    }) 
-                }
-            }
+            init_msg: None,
+            collection_params,
         });
         let cosmos_msg: CosmosMsg = CosmosMsg::Wasm(WasmMsg::Execute {
             contract_addr: deps.api.addr_validate(&msg.base_factory_address)?.to_string(),
@@ -107,10 +92,11 @@ pub fn instantiate(
 
     let config = Config {
         owner: info.sender.clone(),
+        free_vote_addr: deps.api.addr_validate(&msg.clone().free_vote_addr)?,
         bid_denom: msg.clone().bid_denom,
         minimum_outbid: Decimal::percent(1),
         incentive_denom: msg.clone().incentive_denom,
-        incentive_distribution_amount: 100_000_000u128,
+        incentive_distribution_amount: 0u128,
         incentive_bid_percent: Decimal::percent(10),
         current_submission_id: 0,
         sg721_addr: msg.clone().sg721_addr.unwrap_or_else(|| "".to_string()),
@@ -143,7 +129,7 @@ pub fn instantiate(
             submission_end_time: env.block.time.seconds() + (VOTE_PERIOD * SECONDS_PER_DAY),
         },
         bids: vec![],
-        auction_end_time: env.block.time.seconds() + 300,//(SECONDS_PER_DAY * config.auction_period),
+        auction_end_time: env.block.time.seconds() + (SECONDS_PER_DAY * config.auction_period),
         highest_bid: Bid {
             bidder: Addr::unchecked(""),
             amount: 0u128,
@@ -173,8 +159,8 @@ pub fn execute(
         ExecuteMsg::ConcludeAuction {  } => conclude_auction(deps, env),
         // ExecuteMsg::MigrateMinter { new_code_id } => todo!(),
         ExecuteMsg::MigrateContract { new_code_id } => migrate_contract(deps, env, info, new_code_id),
-        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, incentive_denom, curation_threshold, incentive_bid_percent, incentive_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period } => 
-        update_config(deps, info, owner, bid_denom, minimum_outbid, incentive_denom, incentive_distribution_amount, incentive_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
+        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, incentive_denom, curation_threshold, incentive_bid_percent, incentive_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period, free_vote_addr } => 
+        update_config(deps, info, owner, free_vote_addr, bid_denom, minimum_outbid, incentive_denom, incentive_distribution_amount, incentive_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
         }
 }
 
@@ -182,6 +168,7 @@ fn update_config(
     deps: DepsMut,
     info: MessageInfo,
     owner: Option<String>,
+    free_vote_addr: Option<String>,
     bid_denom: Option<String>,
     minimum_outbid: Option<Decimal>,
     incentive_denom: Option<String>,
@@ -218,7 +205,9 @@ fn update_config(
         OWNERSHIP_TRANSFER.save(deps.storage, &valid_addr)?; 
         attrs.push(attr("owner_transfer", valid_addr));
     }
-
+    if let Some(free_vote_addr) = free_vote_addr {
+        config.free_vote_addr = deps.api.addr_validate(&free_vote_addr)?;
+    }
     if let Some(bid_denom) = bid_denom {
         config.bid_denom = bid_denom;
     }
@@ -314,7 +303,7 @@ fn submit_nft(
     Url::parse(&token_uri).map_err(|_| ContractError::InvalidTokenURI { uri: token_uri.clone() })?;
 
     //If submission is from a non-holder, it costs Some(bid_asset)
-    match check_if_collection_holder(deps.as_ref(), config.clone().sg721_addr, info.clone().sender){
+    match check_if_collection_holder(deps.as_ref(), config.clone().sg721_addr, info.clone().sender, config.clone().free_vote_addr){
         Ok(votes) => {
             if votes == 0 {
                 //Check if the submission cost was sent                
@@ -357,9 +346,10 @@ fn check_if_collection_holder(
     deps: Deps,
     sg721_addr: String,
     sender: Addr,
+    free_vote_addr: Addr
 ) -> Result<u64, ContractError> {  
     //If sender is the founder, they are valid
-    if sender == Addr::unchecked("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs") {
+    if sender == free_vote_addr {
         return Ok(1);
     }
 
@@ -390,7 +380,7 @@ fn curate_nft(
     }
 
     //Make sure the sender is a collection holder
-    let votes = check_if_collection_holder(deps.as_ref(), config.clone().sg721_addr, info.clone().sender)?;
+    let votes = check_if_collection_holder(deps.as_ref(), config.clone().sg721_addr, info.clone().sender, config.clone().free_vote_addr)?;
 
     //Error if votes are 0
     if votes == 0 {

@@ -197,6 +197,9 @@ mod tests {
         })
     }
 
+    /// Change in init config to pass
+    //incentive_distribution_amount: 100_000_000u128,
+
     fn proper_instantiate() -> (App, AuctionContract) {
         let mut app = mock_app();
 
@@ -233,6 +236,8 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            collection_params: None,
+            free_vote_addr: String::from("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs"),
             sg721_addr: Some(sg721_contract_addr.to_string()),
             minter_addr: Some(mint_contract_addr.to_string()),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
@@ -372,11 +377,11 @@ mod tests {
             let cosmos_msg = auction_contract.call(conclude_msg, vec![]).unwrap();
             app.execute(Addr::unchecked(USER), cosmos_msg).unwrap();
                        
-            //Check to see that the asset_bidder got the NFT's bid & the submission cost from the non_holder
+            //Check to see that the asset_bidder got the NFT's bid amount & the submission cost from the non_holder
             assert_eq!(
                 app.wrap().query_all_balances(Addr::unchecked("asset_bidder")).unwrap(),
                 vec![
-                    coin(11_000_000, "cdt"), //new from winning the auction bid - 1 from the first bid and 10 from the submission cost
+                    coin(11_000_000, "cdt"), //new from winning the auction bid -> 1 from the first NFT bid and 10 from the submission cost
                     coin(10000000, "mbrn") //old
                     ]
             );
@@ -408,6 +413,7 @@ mod tests {
             //Update incentive_distribution_amount to 0
             let update_config_msg = ExecuteMsg::UpdateConfig {
                 owner: None,
+                free_vote_addr: None,
                 bid_denom: None,
                 minimum_outbid: None,
                 incentive_denom: None,

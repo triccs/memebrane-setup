@@ -1,13 +1,16 @@
 use cosmwasm_std::{Addr, Decimal, Timestamp};
 use cosmwasm_schema::cw_serde;
+use sg2::msg::CollectionParams;
 
 use crate::state::{Auction, SubmissionInfo, SubmissionItem};
 
 #[cw_serde]
 pub struct InstantiateMsg {
-    ///Collection Code ID
+    ///Collection Params
+    /// sg721 code_IDs -> testnet: 2595, mainnet: 180
+    pub sg721_code_id: Option<u64>,
     /// making this an option makes testing easier & allows pre-existing collections to be added if they give the contract mint ability
-    pub sg721_code_id: Option<u64>, //testnet: 2595, mainnet: 180
+    pub collection_params: Option<CollectionParams>, 
     /// Minter address
     /// If you have an existing collection, pass the base-minter && sg721 here to skip the instantiation
     pub minter_addr: Option<String>,     
@@ -24,6 +27,8 @@ pub struct InstantiateMsg {
     /// testnet: 50_000_000u64
     /// mainnet: 5_000_000u64
     pub mint_cost: u64,
+    /// Free vote address
+    pub free_vote_addr: String,
 }
 
 #[cw_serde]
@@ -43,6 +48,7 @@ pub enum ExecuteMsg {
     MigrateContract { new_code_id: u64 },
     UpdateConfig {
         owner: Option<String>,
+        free_vote_addr: Option<String>,
         bid_denom: Option<String>,
         minimum_outbid: Option<Decimal>,
         incentive_denom: Option<String>,
@@ -88,6 +94,8 @@ pub enum QueryMsg {
 pub struct Config {
     /// Contract owner
     pub owner: Addr,
+    /// Address that gets a free vote
+    pub free_vote_addr: Addr,
     /// Bid denom
     pub bid_denom: String,
     /// Minimum percent to increase bid by

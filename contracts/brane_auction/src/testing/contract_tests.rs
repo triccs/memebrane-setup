@@ -14,6 +14,8 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            collection_params: None,
+            free_vote_addr: String::from("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs"),
             sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
@@ -122,6 +124,8 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            collection_params: None,
+            free_vote_addr: String::from("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs"),
             sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
@@ -203,6 +207,8 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            collection_params: None,
+            free_vote_addr: String::from("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs"),
             sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
@@ -268,6 +274,8 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            collection_params: None,
+            free_vote_addr: String::from("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs"),
             sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
@@ -392,6 +400,8 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            collection_params: None,
+            free_vote_addr: String::from("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs"),
             sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
@@ -570,6 +580,8 @@ mod tests {
 
         let msg = InstantiateMsg {
             sg721_code_id: None,
+            collection_params: None,
+            free_vote_addr: String::from("stars1988s5h45qwkaqch8km4ceagw2e08vdw2mu2mgs"),
             sg721_addr: Some(String::from("some_minter_address")),
             minter_addr: Some(String::from("some_minter_address")),
             base_factory_address: String::from("stars1a45hcxty3spnmm2f0papl8v4dk5ew29s4syhn4efte8u5haex99qlkrtnx"),
@@ -589,6 +601,7 @@ mod tests {
         //Update config: Not owner
         let update_config_msg = ExecuteMsg::UpdateConfig {
             owner: None,
+            free_vote_addr: None,
             bid_denom: None,
             minimum_outbid: None,
             incentive_denom: None,
@@ -612,6 +625,7 @@ mod tests {
         //Update config
         let update_config_msg = ExecuteMsg::UpdateConfig {
             owner: None,
+            free_vote_addr: Some(String::from("new_vote_addr")),
             bid_denom: Some(String::from("different")),
             minimum_outbid: Some(Decimal::zero()),
             incentive_denom: Some(String::from("different")),
@@ -639,6 +653,7 @@ mod tests {
         let resp: Config = from_json(&res).unwrap();
         assert_eq!(resp, Config {
             owner: Addr::unchecked("sender88"),
+            free_vote_addr: Addr::unchecked("new_vote_addr"),
             bid_denom: String::from("different"),
             minimum_outbid: Decimal::zero(),
             incentive_denom: Some(String::from("different")),
