@@ -53,7 +53,7 @@ pub fn instantiate(
             info: CollectionInfo { 
                 creator: env.contract.address.to_string(), 
                 description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with 90% of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
-                image: "ipfs://bafybeidx45olni2oa4lq53s77vvvuuzsaalo3tlfsw7lsysvvpjl3ancfm/brane_wave.png".to_string(),
+                image: String::from("ipfs://bafybeidx45olni2oa4lq53s77vvvuuzsaalo3tlfsw7lsysvvpjl3ancfm/brane_wave.png"),
                 external_link: Some(String::from("https://x.com/the_memebrane")),
                 explicit_content: Some(false), 
                 start_trading_time: None, 
@@ -99,8 +99,8 @@ pub fn instantiate(
         // incentive_distribution_amount: 0u128, //set to 100_000_000u128 to pass integration_test
         incentive_bid_percent: Decimal::percent(10),
         current_submission_id: 0,
-        sg721_addr: msg.clone().sg721_addr.unwrap_or_else(|| "".to_string()),
-        minter_addr: msg.clone().minter_addr.unwrap_or_else(|| "".to_string()),
+        sg721_addr: msg.clone().sg721_addr.unwrap_or_else(|| String::from("")),
+        minter_addr: msg.clone().minter_addr.unwrap_or_else(|| String::from("")),
         mint_cost: msg.mint_cost as u128,
         submission_cost: 10_000_000u128,
         submission_limit: 333u64,
@@ -311,7 +311,7 @@ fn submit_nft(
                     denom: config.bid_denom.clone(),
                     amount: Uint128::new(config.submission_cost),
                 }) {
-                    return Err(ContractError::CustomError { val: "Submission cost not sent".to_string() });
+                    return Err(ContractError::CustomError { val: String::from("Submission cost not sent") });
                 }
                 //Submission cost is used in the bid asset auction
             }
@@ -367,7 +367,7 @@ fn check_if_collection_holder(
     let token_info: TokensResponse = deps.querier.query(&QueryRequest::Wasm(WasmQuery::Smart {
         contract_addr: sg721_addr,
         msg: to_json_binary(&Sg721QueryMsg::Tokens { owner: sender.to_string(), start_after: None, limit: None })?,
-    })).map_err(|_| ContractError::CustomError { val: "Failed to query collection, sender may not hold an NFT".to_string() })?;
+    })).map_err(|_| ContractError::CustomError { val: String::from("Failed to query collection, sender may not hold an NFT") })?;
 
     if token_info.tokens.is_empty() {
         return Ok(0)
@@ -386,7 +386,7 @@ fn curate_nft(
 
     //Check if the submission is valid
     if config.submission_total >= config.submission_limit {
-        return Err(ContractError::CustomError { val: "Exceeded submission limit".to_string() });
+        return Err(ContractError::CustomError { val: String::from("Exceeded submission limit") });
     }
 
     //Make sure the sender is a collection holder
@@ -394,7 +394,7 @@ fn curate_nft(
 
     //Error if votes are 0
     if votes == 0 {
-        return Err(ContractError::CustomError { val: "Sender does not hold an NFT".to_string() });
+        return Err(ContractError::CustomError { val: String::from("Sender does not hold an NFT") });
     }
 
     //Get the Curation passing threshold
@@ -498,11 +498,11 @@ fn assert_bid_asset(
     bid_denom: String,    
 ) -> Result<Bid, ContractError> {
     if info.funds.len() != 1 {
-        return Err(ContractError::InvalidAsset { asset: "None or more than 1 asset sent".to_string() });
+        return Err(ContractError::InvalidAsset { asset: String::from("None or more than 1 asset sent") });
     }
     //Check if the bid asset was sent
     if info.funds[0].denom != bid_denom {
-        return Err(ContractError::InvalidAsset { asset: "Bid asset not sent".to_string() });
+        return Err(ContractError::InvalidAsset { asset: String::from("Bid asset not sent") });
     }
 
     Ok(Bid {
@@ -526,19 +526,19 @@ fn bid_on_live_auction(
     //This will be initiated in the instantiate function & refreshed at the end of the conclude_auction function
     let mut live_auction = match NFT_AUCTION.load(deps.storage){
         Ok(auction) => auction,
-        Err(_) => return Err(ContractError::CustomError { val: "No live auction".to_string() }),
+        Err(_) => return Err(ContractError::CustomError { val: String::from("No live auction") }),
             
     };
 
     //Check if the auction is still live
     if env.block.time.seconds() >= live_auction.auction_end_time {
-        return Err(ContractError::CustomError { val: "Auction has ended".to_string() });
+        return Err(ContractError::CustomError { val: String::from("Auction has ended") });
     }
 
     //Check if the bid is higher than the current highest bid
     if let Some(highest_bid) = live_auction.bids.clone().last() {
         if Uint128::new(current_bid.amount) <= Uint128::new(highest_bid.amount) * (Decimal::one() + config.minimum_outbid) {
-            return Err(ContractError::CustomError { val: "Bid is lower than the minimum outbid amount".to_string() });
+            return Err(ContractError::CustomError { val: String::from("Bid is lower than the minimum outbid amount") });
         } else {
             //Add the bid to the auction's bid list
             live_auction.bids.push(current_bid.clone());
@@ -586,13 +586,13 @@ fn bid_for_bid_assets(
     //Load the current bid asset auction
     let mut live_auction = match ASSET_AUCTION.load(deps.storage){
         Ok(auction) => auction,
-        Err(_) => return Err(ContractError::CustomError { val: "No live bid asset auction".to_string() }),
+        Err(_) => return Err(ContractError::CustomError { val: String::from("No live bid asset auction") }),
     
     };
 
     //Check if the bid is higher than the current highest bid
     if Uint128::new(current_bid.amount) < Uint128::new(live_auction.highest_bid.amount) * (Decimal::one() + config.minimum_outbid){
-        return Err(ContractError::CustomError { val: "Bid is lower than the minimum outbid amount".to_string() });
+        return Err(ContractError::CustomError { val: String::from("Bid is lower than the minimum outbid amount") });
     } else {
         //Send the previous highest bid back to the bidder
         if live_auction.highest_bid.amount > 0 {
@@ -665,7 +665,7 @@ fn conclude_bid_asset_auction(
             if auction.highest_bid.amount > 0 {
                 //Send the bid to the burn address
                 msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                    to_address: "stars1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8lhzvv".to_string(),
+                    to_address: String::from("stars1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8lhzvv"),
                     amount: vec![Coin {
                         denom: config.incentive_denom.unwrap(), //These auctions don't happen without a denom so its safe to unwrap
                         amount: Uint128::new(auction.highest_bid.amount),
@@ -710,7 +710,7 @@ fn conclude_auction(
 
     //Check if the auction is still live
     if env.block.time.seconds() < live_auction.auction_end_time {
-        return Err(ContractError::CustomError { val: "Auction is still live".to_string() });
+        return Err(ContractError::CustomError { val: String::from("Auction is still live") });
     }
 
     //Mint the NFT & send the bid to the proceed_recipient
