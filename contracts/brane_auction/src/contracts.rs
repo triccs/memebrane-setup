@@ -24,7 +24,9 @@ const MINT_REPLY_ID: u64 = 2u64;
 //Constants
 const SECONDS_PER_DAY: u64 = 86400u64;
 const DEFAULT_LIMIT: u32 = 32u32;
+const PENDING_AUCTION_LIMIT: u32 = 1024u32;
 
+//INIT helpers
 const VOTE_PERIOD: u64 = 7u64;
 const AUCTION_PERIOD: u64 = 1u64;
 const CURATION_THRESHOLD: Decimal = Decimal::percent(11);
@@ -52,9 +54,9 @@ pub fn instantiate(
             symbol: String::from("BRANE"), 
             info: CollectionInfo { 
                 creator: env.contract.address.to_string(), 
-                description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with majority of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
-                image: "ipfs://bafybeid2chlkhoknrlwjycpzkiipqypo3x4awnuttdx6sex3kisr3rgfsm/".to_string(),  //TEMP TEMP TEMP TEMP
-                external_link: Some(String::from("https://twitter.com/the_memebrane")),
+                description: String::from("The International Brane Wave is a continuous collection created by reverberating brane waves. It is a living, breathing, and evolving collection of digital art. The International Brane Wave is a place where artists can submit their braney work to append to the collection through daily auctions with 90% of proceeds going to the submitting artist. Submissions can be new pfps, memes, portraits, etc. Let your creativity take hold of the pen!....or pencil...or stylus..you get the gist."),
+                image: "ipfs://bafybeidx45olni2oa4lq53s77vvvuuzsaalo3tlfsw7lsysvvpjl3ancfm/brane_wave.png".to_string(),
+                external_link: Some(String::from("https://x.com/the_memebrane")),
                 explicit_content: Some(false), 
                 start_trading_time: None, 
                 royalty_info: Some(RoyaltyInfoResponse { 
@@ -96,7 +98,7 @@ pub fn instantiate(
         bid_denom: msg.clone().bid_denom,
         minimum_outbid: Decimal::percent(1),
         incentive_denom: msg.clone().incentive_denom,
-        incentive_distribution_amount: 0u128,
+        incentive_distribution_amount: 0u128, //set to 100_000_000u128 to pass integration_test
         incentive_bid_percent: Decimal::percent(10),
         current_submission_id: 0,
         sg721_addr: msg.clone().sg721_addr.unwrap_or_else(|| "".to_string()),
@@ -446,17 +448,18 @@ fn curate_nft(
                         },
                     })?;
                 } else {
-
                     PENDING_AUCTION.update(deps.storage, |mut auctions| -> Result<_, ContractError> {
-                        auctions.push(Auction {
-                            submission_info: submission_info.clone(),
-                            bids: vec![],
-                            auction_end_time: 0, //will set when active
-                            highest_bid: Bid {
-                                bidder: Addr::unchecked(""),
-                                amount: 0u128,                            
-                            },
-                        });
+                        if !(auctions.len() >= PENDING_AUCTION_LIMIT as usize) {
+                            auctions.push(Auction {
+                                submission_info: submission_info.clone(),
+                                bids: vec![],
+                                auction_end_time: 0, //will set when active
+                                highest_bid: Bid {
+                                    bidder: Addr::unchecked(""),
+                                    amount: 0u128,                            
+                                },
+                            });                            
+                        }
                         Ok(auctions)
                     })?;
                 }

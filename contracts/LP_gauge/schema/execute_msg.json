@@ -5,30 +5,17 @@
     {
       "type": "object",
       "required": [
-        "l_p"
+        "create_l_p_gauge"
       ],
       "properties": {
-        "l_p": {
+        "create_l_p_gauge": {
           "type": "object",
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "update_config"
-      ],
-      "properties": {
-        "update_config": {
-          "type": "object",
+          "required": [
+            "msg"
+          ],
           "properties": {
-            "paired_asset": {
-              "type": [
-                "string",
-                "null"
-              ]
+            "msg": {
+              "$ref": "#/definitions/MsgCreateGauge"
             }
           },
           "additionalProperties": false
@@ -36,5 +23,164 @@
       },
       "additionalProperties": false
     }
-  ]
+  ],
+  "definitions": {
+    "Coin": {
+      "description": "Coin defines a token with a denomination and an amount.\n\nNOTE: The amount field is an Int which implements the custom method signatures required by gogoproto.",
+      "type": "object",
+      "required": [
+        "amount",
+        "denom"
+      ],
+      "properties": {
+        "amount": {
+          "type": "string"
+        },
+        "denom": {
+          "type": "string"
+        }
+      }
+    },
+    "Duration": {
+      "type": "object",
+      "required": [
+        "nanos",
+        "seconds"
+      ],
+      "properties": {
+        "nanos": {
+          "description": "Signed fractions of a second at nanosecond resolution of the span of time. Durations less than one second are represented with a 0 `seconds` field and a positive or negative `nanos` field. For durations of one second or more, a non-zero value for the `nanos` field must be of the same sign as the `seconds` field. Must be from -999,999,999 to +999,999,999 inclusive.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "seconds": {
+          "description": "Signed seconds of the span of time. Must be from -315,576,000,000 to +315,576,000,000 inclusive. Note: these bounds are computed from: 60 sec/min * 60 min/hr * 24 hr/day * 365.25 days/year * 10000 years",
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    },
+    "MsgCreateGauge": {
+      "description": "MsgCreateGauge creates a gague to distribute rewards to users",
+      "type": "object",
+      "required": [
+        "coins",
+        "is_perpetual",
+        "num_epochs_paid_over",
+        "owner",
+        "pool_id"
+      ],
+      "properties": {
+        "coins": {
+          "description": "coins are coin(s) to be distributed by the gauge",
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/Coin"
+          }
+        },
+        "distribute_to": {
+          "description": "distribute_to show which lock the gauge should distribute to by time duration or by timestamp",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/QueryCondition"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "is_perpetual": {
+          "description": "is_perpetual shows if it's a perpetual or non-perpetual gauge Non-perpetual gauges distribute their tokens equally per epoch while the gauge is in the active period. Perpetual gauges distribute all their tokens at a single time and only distribute their tokens again once the gauge is refilled",
+          "type": "boolean"
+        },
+        "num_epochs_paid_over": {
+          "description": "num_epochs_paid_over is the number of epochs distribution will be completed over",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "owner": {
+          "description": "owner is the address of gauge creator",
+          "type": "string"
+        },
+        "pool_id": {
+          "description": "pool_id is the ID of the pool that the gauge is meant to be associated with. if pool_id is set, then the \"QueryCondition.LockQueryType\" must be \"NoLock\" with all other fields of the \"QueryCondition.LockQueryType\" struct unset, including \"QueryCondition.Denom\". However, note that, internally, the empty string in \"QueryCondition.Denom\" ends up being overwritten with incentivestypes.NoLockExternalGaugeDenom(<pool-id>) so that the gauges associated with a pool can be queried by this prefix if needed.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0.0
+        },
+        "start_time": {
+          "description": "start_time is the distribution start time",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "QueryCondition": {
+      "description": "QueryCondition is a struct used for querying locks upon different conditions. Duration field and timestamp fields could be optional, depending on the LockQueryType.",
+      "type": "object",
+      "required": [
+        "denom",
+        "lock_query_type"
+      ],
+      "properties": {
+        "denom": {
+          "description": "Denom represents the token denomination we are looking to lock up",
+          "type": "string"
+        },
+        "duration": {
+          "description": "Duration is used to query locks with longer duration than the specified duration. Duration field must not be nil when the lock query type is `ByLockDuration`.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Duration"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lock_query_type": {
+          "description": "LockQueryType is a type of lock query, ByLockDuration | ByLockTime",
+          "type": "integer",
+          "format": "int32"
+        },
+        "timestamp": {
+          "description": "Timestamp is used by locks started before the specified duration. Timestamp field must not be nil when the lock query type is `ByLockTime`. Querying locks with timestamp is currently not implemented.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    },
+    "Timestamp": {
+      "type": "object",
+      "required": [
+        "nanos",
+        "seconds"
+      ],
+      "properties": {
+        "nanos": {
+          "description": "Non-negative fractions of a second at nanosecond resolution. Negative second values with fractions must still have non-negative nanos values that count forward in time. Must be from 0 to 999,999,999 inclusive.",
+          "type": "integer",
+          "format": "int32"
+        },
+        "seconds": {
+          "description": "Represents seconds of UTC time since Unix epoch 1970-01-01T00:00:00Z. Must be from 0001-01-01T00:00:00Z to 9999-12-31T23:59:59Z inclusive.",
+          "type": "integer",
+          "format": "int64"
+        }
+      }
+    }
+  }
 }
