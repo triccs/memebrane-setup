@@ -1,7 +1,7 @@
 use core::panic;
 
 use cosmwasm_std::{
-    attr, entry_point, has_coins, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, Querier, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery
+    attr, entry_point, has_coins, to_json_binary, Addr, BankMsg, Binary, Coin, CosmosMsg, Decimal, Deps, DepsMut, Env, MessageInfo, Order, QuerierWrapper, QueryRequest, Reply, Response, StdError, StdResult, Storage, SubMsg, Uint128, WasmMsg, WasmQuery
 };
 use cw2::set_contract_version;
 
@@ -9,7 +9,7 @@ use cw_storage_plus::Bound;
 use url::Url;
 
 use crate::{error::ContractError, 
-    msgs::{CollectionParams, CreateMinterMsg, Sg2ExecuteMsg, CollectionInfo, RoyaltyInfoResponse, Sg721InstantiateMsg, TokensResponse, Cw721QueryMsg as Sg721QueryMsg, Config, ExecuteMsg, BaseMinterExecuteMsg, InstantiateMsg, MigrateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::{handle_collection_reply, handle_mint_reply}, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS, WINNING_BIDDER}};
+    msgs::{CollectionParams, CreateMinterMsg, Sg2ExecuteMsg, CollectionInfo, RoyaltyInfoResponse, Sg721InstantiateMsg, TokensResponse, Cw721QueryMsg as Sg721QueryMsg, Config, ExecuteMsg, BaseMinterExecuteMsg, InstantiateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::{handle_collection_reply, handle_mint_reply}, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS, WINNING_BIDDER}};
 
 
 // Contract name and version used for migration.
@@ -326,7 +326,7 @@ fn submit_nft(
         //Increment ID
         config.current_submission_id += 1;
         config.submission_total += 1;
-        CONFIG.save(storage, config)?;
+        CONFIG.save(deps.storage, &config)?;
     
         submission_id
     };

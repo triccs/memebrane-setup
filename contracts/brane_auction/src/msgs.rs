@@ -51,7 +51,7 @@ pub enum ExecuteMsg {
         bid_denom: Option<String>,
         minimum_outbid: Option<Decimal>,
         incentive_denom: Option<String>,
-        incentive_distribution_amount: Option<u128>,
+        // incentive_distribution_amount: Option<u128>,
         incentive_bid_percent: Option<Decimal>,
         mint_cost: Option<u128>,
         submission_cost: Option<u128>,
@@ -101,8 +101,8 @@ pub struct Config {
     pub minimum_outbid: Decimal,
     /// Memecoin denom
     pub incentive_denom: Option<String>,
-    /// Memecoin distribution amount
-    pub incentive_distribution_amount: u128,
+    // Memecoin distribution amount
+    // pub incentive_distribution_amount: u128,
     /// Percent of Bid to distribute to incentive holders
     pub incentive_bid_percent: Decimal,
     /// Current submission ID
@@ -222,6 +222,3 @@ pub struct CollectionParams {
 pub enum Sg2ExecuteMsg<T> {
     CreateMinter(CreateMinterMsg<T>),
 }
-
-#[cw_serde]
-pub struct MigrateMsg {}
