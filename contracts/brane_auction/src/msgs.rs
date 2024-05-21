@@ -140,5 +140,59 @@ pub struct PendingAuctionResponse {
     pub pending_auctions: Vec<Auction>,
 }
 
+//CW721
+#[cw_serde]
+pub struct TokensResponse {
+    /// Contains all token_ids in lexicographical ordering
+    /// If there are more than `limit`, use `start_after` in future queries
+    /// to achieve pagination.
+    pub tokens: Vec<String>,
+}
+
+#[cw_serde]
+pub enum Cw721QueryMsg {
+    /// With Enumerable extension.
+    /// Returns all tokens owned by the given address, [] if unset.
+    /// Return type: TokensResponse.
+    Tokens {
+        owner: String,
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+    /// With Enumerable extension.
+    /// Requires pagination. Lists all token_ids controlled by the contract.
+    /// Return type: TokensResponse.
+    AllTokens {
+        start_after: Option<String>,
+        limit: Option<u32>,
+    },
+}
+
+/////SG721
+#[cw_serde]
+pub struct CollectionInfo<T> {
+    pub creator: String,
+    pub description: String,
+    pub image: String,
+    pub external_link: Option<String>,
+    pub explicit_content: Option<bool>,
+    pub start_trading_time: Option<Timestamp>,
+    pub royalty_info: Option<T>,
+}
+
+#[cw_serde]
+pub struct RoyaltyInfoResponse {
+    pub payment_address: String,
+    pub share: Decimal,
+}
+
+#[cw_serde]
+pub struct InstantiateMsg {
+    pub name: String,
+    pub symbol: String,
+    pub minter: String,
+    pub collection_info: CollectionInfo<RoyaltyInfoResponse>,
+}
+
 #[cw_serde]
 pub struct MigrateMsg {}

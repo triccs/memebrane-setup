@@ -9,9 +9,7 @@ use cw_storage_plus::Bound;
 use url::Url;
 
 use sg2::msg::{CollectionParams, CreateMinterMsg, Sg2ExecuteMsg};
-use cw721::{TokensResponse, Cw721QueryMsg as Sg721QueryMsg};
-use sg721::{CollectionInfo, RoyaltyInfoResponse, InstantiateMsg as Sg721InstantiateMsg};
-use crate::{error::ContractError, msgs::{Config, ExecuteMsg, BaseMinterExecuteMsg, InstantiateMsg, MigrateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::{handle_collection_reply, handle_mint_reply}, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS, WINNING_BIDDER}};
+use crate::{error::ContractError, msgs::{CollectionInfo, RoyaltyInfoResponse, InstantiateMsg as Sg721InstantiateMsg, TokensResponse, Cw721QueryMsg as Sg721QueryMsg, Config, ExecuteMsg, BaseMinterExecuteMsg, InstantiateMsg, MigrateMsg, PendingAuctionResponse, QueryMsg, SubmissionsResponse}, reply::{handle_collection_reply, handle_mint_reply}, state::{Auction, Bid, BidAssetAuction, SubmissionInfo, SubmissionItem, ASSET_AUCTION, CONFIG, NFT_AUCTION, OWNERSHIP_TRANSFER, PENDING_AUCTION, SUBMISSIONS, WINNING_BIDDER}};
 
 
 // Contract name and version used for migration.
