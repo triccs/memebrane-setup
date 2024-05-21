@@ -1,6 +1,6 @@
 
 use cosmwasm_std::{attr, to_json_binary, CosmosMsg, DepsMut, Env, QueryRequest, Reply, Response, StdError, StdResult, WasmMsg, WasmQuery};
-use cw721::{TokensResponse, Cw721QueryMsg as Sg721QueryMsg};
+use crate::msgs::{ TokensResponse, Cw721QueryMsg as Sg721QueryMsg };
 use sg721::ExecuteMsg as Sg721ExecuteMsg;
 
 use crate::state::{CONFIG, WINNING_BIDDER};

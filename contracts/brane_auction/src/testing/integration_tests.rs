@@ -5,7 +5,7 @@ mod tests {
     use cosmwasm_std::{ to_json_binary,
         coin, Addr, Binary, Empty, Response, StdResult, Uint128, Decimal,
     };
-    use cw721::TokensResponse;
+    use crate::msgs::TokensResponse;
     use cw_multi_test::{App, AppBuilder, BankKeeper, Contract, ContractWrapper, Executor};
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
