@@ -44,7 +44,7 @@ pub enum ExecuteMsg {
     ConcludeAuction { },
     ////These are all controlled by the owner who will be a DAODAO NFT staking contract
     // MigrateMinter { new_code_id: u64 },
-    MigrateContract { new_code_id: u64 },
+    // MigrateContract { new_code_id: u64 },
     UpdateConfig {
         owner: Option<String>,
         free_vote_addr: Option<String>,

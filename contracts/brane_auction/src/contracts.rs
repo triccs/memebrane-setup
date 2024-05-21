@@ -158,7 +158,7 @@ pub fn execute(
         ExecuteMsg::BidForAssets {  } => bid_for_bid_assets(deps, info),
         ExecuteMsg::ConcludeAuction {  } => conclude_auction(deps, env),
         // ExecuteMsg::MigrateMinter { new_code_id } => todo!(),
-        ExecuteMsg::MigrateContract { new_code_id } => migrate_contract(deps, env, info, new_code_id),
+        // ExecuteMsg::MigrateContract { new_code_id } => migrate_contract(deps, env, info, new_code_id),
         ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, incentive_denom, curation_threshold, incentive_bid_percent, incentive_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period, free_vote_addr } => 
         update_config(deps, info, owner, free_vote_addr, bid_denom, minimum_outbid, incentive_denom, incentive_distribution_amount, incentive_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
         }
@@ -251,30 +251,30 @@ fn update_config(
     )
 }
 
-fn migrate_contract(
-    deps: DepsMut,
-    env: Env,
-    info: MessageInfo,
-    new_code_id: u64,
-) -> Result<Response, ContractError> {
-    let config = CONFIG.load(deps.storage)?;
+// fn migrate_contract(
+//     deps: DepsMut,
+//     env: Env,
+//     info: MessageInfo,
+//     new_code_id: u64,
+// ) -> Result<Response, ContractError> {
+//     let config = CONFIG.load(deps.storage)?;
 
-    if info.sender != config.owner {
-        return Err(ContractError::Unauthorized {});
-    }
+//     if info.sender != config.owner {
+//         return Err(ContractError::Unauthorized {});
+//     }
 
-    let migrate_msg = CosmosMsg::Wasm(WasmMsg::Migrate { 
-        contract_addr: env.contract.address.to_string(), 
-        new_code_id, 
-        msg: to_json_binary(&MigrateMsg {})?
-    });
+//     let migrate_msg = CosmosMsg::Wasm(WasmMsg::Migrate { 
+//         contract_addr: env.contract.address.to_string(), 
+//         new_code_id, 
+//         msg: to_json_binary(&MigrateMsg {})?
+//     });
 
-    Ok(Response::new()
-        .add_message(migrate_msg)
-        .add_attribute("method", "migrate_contract")
-        .add_attribute("new_code_id", new_code_id.to_string())
-    )
-}
+//     Ok(Response::new()
+//         .add_message(migrate_msg)
+//         .add_attribute("method", "migrate_contract")
+//         .add_attribute("new_code_id", new_code_id.to_string())
+//     )
+// }
 
 fn get_next_submission_id(
     storage: &mut dyn Storage,
