@@ -97,29 +97,6 @@
     {
       "type": "object",
       "required": [
-        "migrate_contract"
-      ],
-      "properties": {
-        "migrate_contract": {
-          "type": "object",
-          "required": [
-            "new_code_id"
-          ],
-          "properties": {
-            "new_code_id": {
-              "type": "integer",
-              "format": "uint64",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "update_config"
       ],
       "properties": {
@@ -150,6 +127,12 @@
                 }
               ]
             },
+            "free_vote_addr": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "incentive_bid_percent": {
               "anyOf": [
                 {
@@ -165,14 +148,6 @@
                 "string",
                 "null"
               ]
-            },
-            "incentive_distribution_amount": {
-              "type": [
-                "integer",
-                "null"
-              ],
-              "format": "uint128",
-              "minimum": 0.0
             },
             "minimum_outbid": {
               "anyOf": [

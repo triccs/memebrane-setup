@@ -92,10 +92,10 @@
       "description": "Return live auction info",
       "type": "object",
       "required": [
-        "live_n_f_t_auction"
+        "live_nft_auction"
       ],
       "properties": {
-        "live_n_f_t_auction": {
+        "live_nft_auction": {
           "type": "object",
           "additionalProperties": false
         }

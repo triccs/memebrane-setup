@@ -7,13 +7,13 @@
     "bid_denom",
     "curation_threshold",
     "current_submission_id",
-    "current_token_id",
+    "free_vote_addr",
     "incentive_bid_percent",
-    "incentive_distribution_amount",
     "minimum_outbid",
     "mint_cost",
     "minter_addr",
     "owner",
+    "sg721_addr",
     "submission_cost",
     "submission_limit",
     "submission_total",
@@ -44,11 +44,13 @@
       "format": "uint64",
       "minimum": 0.0
     },
-    "current_token_id": {
-      "description": "Current token ID",
-      "type": "integer",
-      "format": "uint64",
-      "minimum": 0.0
+    "free_vote_addr": {
+      "description": "Address that gets a free vote",
+      "allOf": [
+        {
+          "$ref": "#/definitions/Addr"
+        }
+      ]
     },
     "incentive_bid_percent": {
       "description": "Percent of Bid to distribute to incentive holders",
@@ -65,12 +67,6 @@
         "null"
       ]
     },
-    "incentive_distribution_amount": {
-      "description": "Memecoin distribution amount",
-      "type": "integer",
-      "format": "uint128",
-      "minimum": 0.0
-    },
     "minimum_outbid": {
       "description": "Minimum percent to increase bid by",
       "allOf": [
@@ -86,7 +82,7 @@
       "minimum": 0.0
     },
     "minter_addr": {
-      "description": "Minter address",
+      "description": "Base Minter address",
       "type": "string"
     },
     "owner": {
@@ -96,6 +92,10 @@
           "$ref": "#/definitions/Addr"
         }
       ]
+    },
+    "sg721_addr": {
+      "description": "Collection Address",
+      "type": "string"
     },
     "submission_cost": {
       "description": "Submission cost for non-holders in the bid_denom",
