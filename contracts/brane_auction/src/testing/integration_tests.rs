@@ -417,7 +417,7 @@ mod tests {
                 bid_denom: None,
                 minimum_outbid: None,
                 incentive_denom: None,
-                incentive_distribution_amount: Some(0u128),
+                // incentive_distribution_amount: Some(0u128),
                 incentive_bid_percent: None,
                 mint_cost: None,
                 submission_cost: None,

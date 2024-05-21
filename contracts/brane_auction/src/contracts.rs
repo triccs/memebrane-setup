@@ -96,7 +96,7 @@ pub fn instantiate(
         bid_denom: msg.clone().bid_denom,
         minimum_outbid: Decimal::percent(1),
         incentive_denom: msg.clone().incentive_denom,
-        incentive_distribution_amount: 0u128, //set to 100_000_000u128 to pass integration_test
+        // incentive_distribution_amount: 0u128, //set to 100_000_000u128 to pass integration_test
         incentive_bid_percent: Decimal::percent(10),
         current_submission_id: 0,
         sg721_addr: msg.clone().sg721_addr.unwrap_or_else(|| "".to_string()),
@@ -159,8 +159,8 @@ pub fn execute(
         ExecuteMsg::ConcludeAuction {  } => conclude_auction(deps, env),
         // ExecuteMsg::MigrateMinter { new_code_id } => todo!(),
         // ExecuteMsg::MigrateContract { new_code_id } => migrate_contract(deps, env, info, new_code_id),
-        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, incentive_denom, curation_threshold, incentive_bid_percent, incentive_distribution_amount, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period, free_vote_addr } => 
-        update_config(deps, info, owner, free_vote_addr, bid_denom, minimum_outbid, incentive_denom, incentive_distribution_amount, incentive_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
+        ExecuteMsg::UpdateConfig { owner, bid_denom, minimum_outbid, incentive_denom, curation_threshold, incentive_bid_percent, mint_cost, auction_period, submission_cost, submission_limit, submission_vote_period, free_vote_addr } => 
+        update_config(deps, info, owner, free_vote_addr, bid_denom, minimum_outbid, incentive_denom, incentive_bid_percent, mint_cost, submission_cost, submission_limit, submission_vote_period, curation_threshold, auction_period),
         }
 }
 
@@ -172,7 +172,7 @@ fn update_config(
     bid_denom: Option<String>,
     minimum_outbid: Option<Decimal>,
     incentive_denom: Option<String>,
-    incentive_distribution_amount: Option<u128>,
+    // incentive_distribution_amount: Option<u128>,
     incentive_bid_percent: Option<Decimal>,
     mint_cost: Option<u128>,
     submission_cost: Option<u128>,
@@ -217,9 +217,9 @@ fn update_config(
     if let Some(incentive_denom) = incentive_denom {
         config.incentive_denom = Some(incentive_denom);
     }
-    if let Some(incentive_distribution_amount) = incentive_distribution_amount {
-        config.incentive_distribution_amount = incentive_distribution_amount;
-    }
+    // if let Some(incentive_distribution_amount) = incentive_distribution_amount {
+    //     config.incentive_distribution_amount = incentive_distribution_amount;
+    // }
     if let Some(incentive_bid_percent) = incentive_bid_percent {
         config.incentive_bid_percent = incentive_bid_percent;
     }
@@ -320,7 +320,17 @@ fn submit_nft(
     };
 
     //Create a new submission
-    let submission_id = get_next_submission_id(deps.storage, &mut config)?;
+    let submission_id = {
+        let submission_id = config.current_submission_id;
+        
+        //Increment ID
+        config.current_submission_id += 1;
+        config.submission_total += 1;
+        CONFIG.save(storage, config)?;
+    
+        submission_id
+    };
+
     let submission_info = SubmissionItem {
         submission: SubmissionInfo {            
             submitter: info.sender.clone(),
@@ -652,7 +662,7 @@ fn conclude_bid_asset_auction(
                 //to cover the overage from the queried balance
                 new_auction_asset.amount -= auction.auctioned_asset.amount;
             }
-            if config.incentive_distribution_amount == 0 && auction.highest_bid.amount > 0 {
+            if auction.highest_bid.amount > 0 {
                 //Send the bid to the burn address
                 msgs.push(CosmosMsg::Bank(BankMsg::Send {
                     to_address: "stars1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8lhzvv".to_string(),
@@ -721,7 +731,7 @@ fn conclude_auction(
         //Save winning bidder for transfer msg
         WINNING_BIDDER.save(deps.storage, &live_auction.highest_bid.bidder.to_string())?;
 
-        //////Split the highest bid to the proceed_recipient & incentive holders////
+        //////Split the highest bid to the proceed_recipient & asset auction////
         if config.incentive_denom.is_none() {
             config.incentive_bid_percent = Decimal::percent(0);
         }
@@ -741,40 +751,40 @@ fn conclude_auction(
         msgs.extend(conclude_bid_asset_auction(deps.storage, deps.querier, env.clone(), recipient_send_amount)?);
         //////
         
-        /////Send incentives to Bidders & curators
-        if let Some(meme_denom) = config.incentive_denom {
-            //Get incentive distribution amount
-            let incentive_distribution_amount = match deps.querier.query_balance(env.clone().contract.address, meme_denom.clone()){
-                Ok(balance) => {
-                    //We distribute the config amount or half of the balance, whichever is lower
-                    if balance.amount.u128() / 2 < config.incentive_distribution_amount {
-                        balance.amount.u128() / 2
-                    } else {
-                        config.incentive_distribution_amount
-                    }
-                },
-                Err(_) => config.incentive_distribution_amount,
-            };
+        // /////Send incentives to Bidders & curators
+        // if let Some(meme_denom) = config.incentive_denom {
+        //     //Get incentive distribution amount
+        //     let incentive_distribution_amount = match deps.querier.query_balance(env.clone().contract.address, meme_denom.clone()){
+        //         Ok(balance) => {
+        //             //We distribute the config amount or half of the balance, whichever is lower
+        //             if balance.amount.u128() / 2 < config.incentive_distribution_amount {
+        //                 balance.amount.u128() / 2
+        //             } else {
+        //                 config.incentive_distribution_amount
+        //             }
+        //         },
+        //         Err(_) => config.incentive_distribution_amount,
+        //     };
 
-            //Split total incentives between unique curators (1/len)
-            let meme_to_curators = live_auction.submission_info.curators.iter().map(|curator| {
-                let meme_amount = (Uint128::new(incentive_distribution_amount) * Decimal::from_ratio(Uint128::new(1), live_auction.submission_info.curators.len() as u128)).u128();
-                (curator.clone(), Coin {
-                    denom: meme_denom.clone(),
-                    amount: Uint128::new(meme_amount),
-                })
-            }).collect::<Vec<(Addr, Coin)>>();
+        //     //Split total incentives between unique curators (1/len)
+        //     let meme_to_curators = live_auction.submission_info.curators.iter().map(|curator| {
+        //         let meme_amount = (Uint128::new(incentive_distribution_amount) * Decimal::from_ratio(Uint128::new(1), live_auction.submission_info.curators.len() as u128)).u128();
+        //         (curator.clone(), Coin {
+        //             denom: meme_denom.clone(),
+        //             amount: Uint128::new(meme_amount),
+        //         })
+        //     }).collect::<Vec<(Addr, Coin)>>();
 
-            //Create the incentive distribution msgs to curators
-            for (curator, coin) in meme_to_curators {
-                if !coin.amount.is_zero() {
-                    msgs.push(CosmosMsg::Bank(BankMsg::Send {
-                        to_address: curator.to_string(),
-                        amount: vec![coin],
-                    }));
-                }
-            }
-        }
+        //     //Create the incentive distribution msgs to curators
+        //     for (curator, coin) in meme_to_curators {
+        //         if !coin.amount.is_zero() {
+        //             msgs.push(CosmosMsg::Bank(BankMsg::Send {
+        //                 to_address: curator.to_string(),
+        //                 amount: vec![coin],
+        //             }));
+        //         }
+        //     }
+        // }
     } else {
         //If no one bids, extend the auction time by 1 day
         live_auction.auction_end_time += SECONDS_PER_DAY;
