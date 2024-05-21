@@ -1,6 +1,5 @@
 use cosmwasm_std::{Addr, Decimal, Timestamp};
 use cosmwasm_schema::cw_serde;
-use sg2::msg::CollectionParams;
 
 use crate::state::{Auction, SubmissionInfo, SubmissionItem};
 
@@ -166,6 +165,62 @@ pub enum Cw721QueryMsg {
         start_after: Option<String>,
         limit: Option<u32>,
     },
+}
+
+/////SG721
+#[cw_serde]
+pub struct CollectionInfo<T> {
+    pub creator: String,
+    pub description: String,
+    pub image: String,
+    pub external_link: Option<String>,
+    pub explicit_content: Option<bool>,
+    pub start_trading_time: Option<Timestamp>,
+    pub royalty_info: Option<T>,
+}
+
+#[cw_serde]
+pub struct RoyaltyInfoResponse {
+    pub payment_address: String,
+    pub share: Decimal,
+}
+
+#[cw_serde]
+pub struct Sg721InstantiateMsg {
+    pub name: String,
+    pub symbol: String,
+    pub minter: String,
+    pub collection_info: CollectionInfo<RoyaltyInfoResponse>,
+}
+
+#[cw_serde]
+pub enum Sg721ExecuteMsg {    
+    /// Transfer is a base message to move a token to another account without triggering actions
+    TransferNft {
+        recipient: String,
+        token_id: String,
+    },
+}
+
+//SG2
+#[cw_serde]
+pub struct CreateMinterMsg<T> {
+    pub init_msg: T,
+    pub collection_params: CollectionParams,
+}
+
+#[cw_serde]
+pub struct CollectionParams {
+    /// The collection code id
+    pub code_id: u64,
+    pub name: String,
+    pub symbol: String,
+    pub info: CollectionInfo<RoyaltyInfoResponse>,
+}
+
+#[cw_serde]
+pub enum Sg2ExecuteMsg<T> {
+    CreateMinter(CreateMinterMsg<T>),
 }
 
 #[cw_serde]

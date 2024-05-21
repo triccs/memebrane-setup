@@ -1,7 +1,6 @@
 
 use cosmwasm_std::{attr, to_json_binary, CosmosMsg, DepsMut, Env, QueryRequest, Reply, Response, StdError, StdResult, WasmMsg, WasmQuery};
-use crate::msgs::{ TokensResponse, Cw721QueryMsg as Sg721QueryMsg };
-use sg721::ExecuteMsg as Sg721ExecuteMsg;
+use crate::msgs::{ TokensResponse, Cw721QueryMsg as Sg721QueryMsg, Sg721ExecuteMsg };
 
 use crate::state::{CONFIG, WINNING_BIDDER};
 
@@ -129,7 +128,7 @@ pub fn handle_mint_reply(deps: DepsMut, env: Env, msg: Reply) -> StdResult<Respo
             ///Transfer newly minted NFT to the bidder
             let msg = CosmosMsg::Wasm(WasmMsg::Execute {
                 contract_addr: config.clone().sg721_addr,
-                msg: to_json_binary(&Sg721ExecuteMsg::TransferNft::<Option<String>, Option<String>> { 
+                msg: to_json_binary(&Sg721ExecuteMsg::TransferNft { 
                     recipient: winning_bidder.clone(),
                     token_id: token_id.clone(),
                     })?,

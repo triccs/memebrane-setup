@@ -30,8 +30,6 @@ optimize = """docker run --rm -v "$(pwd)":/code \
 """
 
 [dependencies]
-sg2 = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
-sg721 = { branch = "main", git = "https://github.com/public-awesome/launchpad.git" }
 url = "2.5.0"
 cosmwasm-std = { version = "1.0.0", features = ["stargate"] }
 cosmwasm-schema = "1.0.0"
